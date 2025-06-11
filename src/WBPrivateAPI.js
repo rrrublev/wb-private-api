@@ -90,7 +90,7 @@ class WBPrivateAPI {
   ) {
     let params = {
       appType: Constants.APPTYPES.DESKTOP,
-      curr: "rub",
+      curr: Constants.CURRENCIES.RUB,
       dest: this.destination.ids[0],
       query: keyword,
       resultset: "catalog",
@@ -174,7 +174,7 @@ class WBPrivateAPI {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
-        dest: this.destination.ids,
+        dest: this.destination.ids[0],
         query: keyword,
         resultset: "filters",
         filters: filters.join(";"),
@@ -198,7 +198,7 @@ class WBPrivateAPI {
       const options = {
         params: {
           appType: Constants.APPTYPES.DESKTOP,
-          curr: "rub",
+          curr: Constants.CURRENCIES.RUB,
           dest: this.destination.ids[0],
           query: catalogConfig.keyword.toLowerCase(),
           resultset: "catalog",
@@ -273,9 +273,12 @@ class WBPrivateAPI {
   async keyHint(query) {
     const options = {
       params: {
+        ab_testing: "false",
         query,
-        gender: Constants.SEX.FEMALE,
+        gender: Constants.SEX.COMMON,
         locale: Constants.LOCALES.RU,
+        lang: Constants.LOCALES.RU,
+        appType: Constants.APPTYPES.DESKTOP
       },
     };
     const res = await this.session.get(Constants.URLS.SEARCH.HINT, options);
@@ -308,7 +311,7 @@ class WBPrivateAPI {
         params: {
           appType: Constants.APPTYPES.DESKTOP,
           locale: Constants.LOCALES.RU,
-          dest: this.destination.ids,
+          dest: this.destination.ids[0],
           nm: productIds.join(";"),
         },
       };
