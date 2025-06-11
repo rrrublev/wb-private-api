@@ -4,17 +4,19 @@ module.exports = {
   FEEDBACKS_PER_PAGE: 20,
   QUESTIONS_PER_PAGE: 30,
   URLS: {
-    MAIN_MENU: "https://www.wildberries.ru/webapi/menu/main-menu-ru-ru.json",
+    MAIN_MENU: "https://static-basket-01.wbbasket.ru/vol0/data/main-menu-ru-ru-v3.json",
     BRAND: {
       IMAGE: "https://images.wbstatic.net/brands/small/{}.jpg",
+      CATALOG: "https://catalog.wb.ru/sellers/v2/catalog",
     },
     SUPPLIER: {
-      INFO: "https://www.wildberries.ru/webapi/seller/data/short/{0}",
+      INFO: "https://static-basket-01.wbbasket.ru/vol0/data/supplier-by-id/{0}.json",
+      CATALOG: "https://catalog.wb.ru/sellers/v2/catalog",
     },
     PROMOS: "https://www.wildberries.ru/webapi/settings/promo/get",
     PRODUCT: {
       CONTENT: "https://wbx-content-v2.wbstatic.net/ru/{}.json",
-      CARD: "https://basket-{0}.wb.ru/vol{1}/part{2}/{3}/info/ru/card.json",
+      CARD: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/info/ru/card.json",
       SELLERS: "https://basket-{0}.wb.ru/vol{1}/part{2}/{3}/info/sellers.json",
       EXTRADATA: "https://www.wildberries.ru/webapi/product/{}/data",
       DETAILS: "https://card.wb.ru/cards/detail",
@@ -29,7 +31,7 @@ module.exports = {
       CATALOG: "https://wbxcatalog-ru.wildberries.ru/{}/catalog",
       ADS: "https://catalog-ads.wildberries.ru/api/v5/search",
       CAROUSEL_ADS: "https://carousel-ads.wildberries.ru/api/v4/carousel",
-      HINT: "https://search.wb.ru/suggests/api/v2/hint",
+      HINT: "https://suggests.wb.ru/suggests/api/v7/hint",
       LIST: "https://card.wb.ru/cards/list",
     },
     IMAGES: {
@@ -2843,5 +2845,5 @@ module.exports = {
     MALE: "male",
   },
   USERAGENT:
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
 };
