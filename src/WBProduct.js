@@ -111,8 +111,8 @@ class WBProduct {
     const options = {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
-        dest: Constants.DESTINATIONS.MOSCOW.ids,
-        regions: Constants.DESTINATIONS.MOSCOW.regions,
+        dest: Constants.DESTINATIONS.MOSCOW.ids[0],
+        regions: Constants.DESTINATIONS.MOSCOW.regions[0],
         stores: Constants.STORES.UFO,
         locale: Constants.LOCALES.RU,
         nm: `${this.id};`,

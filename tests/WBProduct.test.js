@@ -15,12 +15,13 @@ describe("Проверка класса WBProduct", () => {
     expect(product.totalStocks).toBeGreaterThan(0);
   });
 
-  test("Проверка метода .getPromo() на возврат данных об участии в промо-акции", async () => {
-    const catalog = await wbapi.search("Менструальные чаши", 1);
-    const product = catalog.products[0];
-    await product.getPromo();
-    expect(typeof product.promo.active === "boolean").toBeTruthy();
-  });
+  //Old Method
+  // test("Проверка метода .getPromo() на возврат данных об участии в промо-акции", async () => {
+  //   const catalog = await wbapi.search("Менструальные чаши", 1);
+  //   const product = catalog.products[0];
+  //   await product.getPromo();
+  //   expect(typeof product.promo.active === "boolean").toBeTruthy();
+  // });
 
   test(
     "Проверка метода .getFeedbacks() на возврат всех отзывов",

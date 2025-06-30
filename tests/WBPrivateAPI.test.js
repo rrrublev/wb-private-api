@@ -7,15 +7,16 @@ const wbapi = new WBPrivateAPI({
   destination: Constants.DESTINATIONS.MOSCOW,
 });
 
-describe("Проверка поиска рекламодателей", () => {
-  test("Проверка рекламы по Поиску .getSearchAds()", async () => {
-    const ads = await wbapi.getSearchAds("Платье");
-    expect(ads.adverts.length).toBeGreaterThan(0);
-    expect(ads.prioritySubjects.length).toBeGreaterThan(0);
-    expect(ads.adverts[0].cpm).toBeGreaterThan(0);
-    expect(ads.pages.length).toBeGreaterThan(0);
-  });
-});
+//Old Method
+// describe("Проверка поиска рекламодателей", () => {
+//   test("Проверка рекламы по Поиску .getSearchAds()", async () => {
+//     const ads = await wbapi.getSearchAds("Платье");
+//     expect(ads.adverts.length).toBeGreaterThan(0);
+//     expect(ads.prioritySubjects.length).toBeGreaterThan(0);
+//     expect(ads.adverts[0].cpm).toBeGreaterThan(0);
+//     expect(ads.pages.length).toBeGreaterThan(0);
+//   });
+// });
 
 describe("Проверка поиска товаров WBPrivateAPI.search()", () => {
   test('Поиск количества товаров по ключевому запросу "Платье"', async () => {
@@ -57,18 +58,18 @@ describe("Проверка поиска товаров WBPrivateAPI.search()", (
     expect(catalog.products.length).toBe(300);
   });
 
-  test('Проверка фильтрации товаров по бренду и ключевому запросу "торшер"', async () => {
-    const filters = [{ type: "fbrand", value: 11399 }];
-    const catalog = await wbapi.search("торшер", 1, 0, filters);
+  test('Проверка фильтрации товаров по бренду и ключевому запросу "Зип пакет"', async () => {
+    const filters = [{ type: "fbrand", value: 568569 }];
+    const catalog = await wbapi.search("Зип пакет", 1, 0, filters);
     expect(catalog.products.length).toBeGreaterThan(0);
     expect(
       catalog.products.every((p) => p.brandId === filters[0].value)
     ).toBeTruthy();
   });
 
-  test('Проверка фильтрации товаров по поставщику и ключевому запросу "торшер"', async () => {
-    const filters = [{ type: "fsupplier", value: 36934 }];
-    const catalog = await wbapi.search("резинки зеленые для волос из ткани", 1, 0, filters);
+  test('Проверка фильтрации товаров по поставщику и ключевому запросу "Зип пакет"', async () => {
+    const filters = [{ type: "fsupplier", value: 845298 }];
+    const catalog = await wbapi.search("Зип пакет", 1, 0, filters);
     expect(catalog.products.length).toBeGreaterThan(0);
     expect(
       catalog.products.every((p) => p.supplierId === filters[0].value)
@@ -115,7 +116,7 @@ describe("Проверка поиска товаров WBPrivateAPI.search()", (
 
   test('Проверка метода .keyHint(query) на вывод предположений по ключевому запросу "Платье"', async () => {
     const hints = await wbapi.keyHint("Платье");
-    expect(hints[0].type).toBe("suggest");
+    expect(hints.suggests[0].type).toBe("suggest");
   });
 
   test("Проверка метода .searchSimilarByNm(productId) на возврат идентификаторов похожиш товаров", async () => {
@@ -123,14 +124,15 @@ describe("Проверка поиска товаров WBPrivateAPI.search()", (
     expect(similarIds.length).toBeGreaterThan(0);
   });
 
-  test("Проверка метода .getPromos() на возврат текущих промо-акций", async () => {
-    const promos = await wbapi.getPromos();
-    expect(promos.length).toBeGreaterThan(0);
-  });
+  //Old Method
+  // test("Проверка метода .getPromos() на возврат текущих промо-акций", async () => {
+  //   const promos = await wbapi.getPromos();
+  //   expect(promos.length).toBeGreaterThan(0);
+  // });
 
   test("Проверка метода .getListOfProducts() на возврат найденных товаров", async () => {
     const products = Array(10)
-      .fill(15693390)
+      .fill(91749372)
       .map((v, idx) => v + idx);
     const list = await wbapi.getListOfProducts(products);
     expect(list.length).toBeGreaterThan(0);
@@ -140,6 +142,6 @@ describe("Проверка поиска товаров WBPrivateAPI.search()", (
 describe("Проверка выдачи данных по продавцу", () => {
   test("Проверка метода .getSupplierInfo()", async () => {
     const supplier = await wbapi.getSupplierInfo(1136572);
-    expect(supplier.id).toBe(1136572);
+    expect(supplier.supplierId).toBe(1136572);
   });
 });

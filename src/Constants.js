@@ -4,7 +4,8 @@ module.exports = {
   FEEDBACKS_PER_PAGE: 20,
   QUESTIONS_PER_PAGE: 30,
   URLS: {
-    MAIN_MENU: "https://static-basket-01.wbbasket.ru/vol0/data/main-menu-ru-ru-v3.json",
+    MAIN_MENU:
+      "https://static-basket-01.wbbasket.ru/vol0/data/main-menu-ru-ru-v3.json",
     BRAND: {
       IMAGE: "https://images.wbstatic.net/brands/small/{}.jpg",
       CATALOG: "https://catalog.wb.ru/sellers/v2/catalog",
@@ -12,6 +13,9 @@ module.exports = {
     SUPPLIER: {
       INFO: "https://static-basket-01.wbbasket.ru/vol0/data/supplier-by-id/{0}.json",
       CATALOG: "https://catalog.wb.ru/sellers/v2/catalog",
+      TOTALPRODUCTS: "https://catalog.wb.ru/sellers/v8/filters",
+      SHIPMENT:
+        "https://suppliers-shipment-2.wildberries.ru/api/v1/suppliers/{0}",
     },
     PROMOS: "https://www.wildberries.ru/webapi/settings/promo/get",
     PRODUCT: {
@@ -26,8 +30,8 @@ module.exports = {
     },
     SEARCH: {
       SIMILAR_BY_NM: "https://in-similar.wildberries.ru/",
-      TOTALPRODUCTS: "https://search.wb.ru/exactmatch/ru/common/v4/search",
-      EXACTMATCH: "https://search.wb.ru/exactmatch/ru/common/v4/search",
+      TOTALPRODUCTS: "https://search.wb.ru/exactmatch/ru/common/v13/search",
+      EXACTMATCH: "https://search.wb.ru/exactmatch/ru/common/v13/search",
       CATALOG: "https://wbxcatalog-ru.wildberries.ru/{}/catalog",
       ADS: "https://catalog-ads.wildberries.ru/api/v5/search",
       CAROUSEL_ADS: "https://carousel-ads.wildberries.ru/api/v4/carousel",

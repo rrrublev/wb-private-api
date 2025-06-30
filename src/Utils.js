@@ -1,7 +1,7 @@
 /* eslint-disable no-nested-ternary */
 const format = require("string-format");
 const Constants = require("./Constants");
-const moment = require("moment")
+const moment = require("moment");
 
 format.extend(String.prototype, {});
 
@@ -21,7 +21,7 @@ const BASKETS = [
   [1920, 2045],
   [2046, 2189],
   [2091, 2405],
-  [2406, 2621]
+  [2406, 2621],
 ];
 
 const imageURL = (productId, imageType = "SMALL", order = 1) => {
@@ -55,14 +55,14 @@ const getBasketNumber = (productId) => {
 const brandImageURL = (brandId) => Constants.URLS.BRAND.IMAGE.format(brandId);
 
 const genNewUserID = function () {
-  var t = Math.floor((new Date).getTime() / 1e3)
-    , e = Math.floor(Math.random() * Math.pow(2, 30)).toString() + t.toString()
-    , n = new Date;
-  return e
+  var t = Math.floor(new Date().getTime() / 1e3),
+    e = Math.floor(Math.random() * Math.pow(2, 30)).toString() + t.toString(),
+    n = new Date();
+  return e;
 };
 
 const getQueryIdForSearch = function () {
-  return `qid${genNewUserID()}${moment(new Date).format("yyyyMMDDHHmmss")}`
+  return `qid${genNewUserID()}${moment(new Date()).format("yyyyMMDDHHmmss")}`;
 };
 
 const Utils = {
@@ -74,8 +74,8 @@ const Utils = {
     imageURL: brandImageURL,
   },
   Search: {
-    getQueryIdForSearch
-  }
+    getQueryIdForSearch,
+  },
 };
 
 module.exports = Utils;

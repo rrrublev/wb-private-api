@@ -27,7 +27,6 @@ class WBPrivateAPI {
     const products = [];
 
     const totalProducts = await this.searchTotalProducts(keyword);
-    console.log("totalProducts", totalProducts)
     if (totalProducts === 0) return [];
 
     const { catalog_type, catalog_value } = await this.getQueryMetadata(
@@ -39,10 +38,7 @@ class WBPrivateAPI {
     );
     const catalogConfig = { keyword, catalog_type, catalog_value };
 
-    let totalPages = Math.round(totalProducts / 100 + 0.5);
-    if (totalPages > Constants.PAGES_PER_CATALOG) {
-      totalPages = Constants.PAGES_PER_CATALOG;
-    }
+    let totalPages = this.getPageCount(totalProducts);
 
     if (pageCount > 0) {
       if (pageCount < totalPages) {
@@ -151,12 +147,34 @@ class WBPrivateAPI {
         query: keyword,
         curr: Constants.CURRENCIES.RUB,
         dest: this.destination.ids[0],
-        regions: this.destination.regions,
+        regions: this.destination.regions[0],
         locale: Constants.LOCALES.RU,
         resultset: "filters",
       },
       headers: {
         "x-queryid": Utils.Search.getQueryIdForSearch(),
+      },
+    });
+
+    return res.data.data?.total || 0;
+  }
+
+  /**
+   * It returns the total number of products by supplier
+   * @param {number} supplierId - the search query
+   * @returns {number} Total number of products
+   */
+  async SupplierTotalProducts(supplierId) {
+    const res = await this.session.get(Constants.URLS.SUPPLIER.TOTALPRODUCTS, {
+      params: {
+        ab_testing: "false",
+        appType: Constants.APPTYPES.DESKTOP,
+        curr: Constants.CURRENCIES.RUB,
+        dest: this.destination.ids[0],
+        filters: "xsubject",
+        spp: "30",
+        supplier: supplierId,
+        uclusters: "2",
       },
     });
 
@@ -204,7 +222,7 @@ class WBPrivateAPI {
           resultset: "catalog",
           sort: "popular",
           spp: 30,
-          suppressSpellcheck: false
+          suppressSpellcheck: false,
         },
         headers: {
           "x-queryid": Utils.Search.getQueryIdForSearch(),
@@ -278,7 +296,7 @@ class WBPrivateAPI {
         gender: Constants.SEX.COMMON,
         locale: Constants.LOCALES.RU,
         lang: Constants.LOCALES.RU,
-        appType: Constants.APPTYPES.DESKTOP
+        appType: Constants.APPTYPES.DESKTOP,
       },
     };
     const res = await this.session.get(Constants.URLS.SEARCH.HINT, options);
@@ -366,6 +384,58 @@ class WBPrivateAPI {
       Constants.URLS.SUPPLIER.INFO.format(sellerId)
     );
     return res.data || {};
+  }
+
+  /**
+   * @returns Object with supplier shipment info
+   */
+  async getSupplierShipment(sellerId) {
+    const res = await this.session.get(
+      Constants.URLS.SUPPLIER.SHIPMENT.format(sellerId),
+      {
+        headers: {
+          "x-client-name": "site",
+        },
+      }
+    );
+    return res.data || {};
+  }
+
+  /**
+   * It takes a supplier id and returns an array of products
+   * @param {number} supplierId - the search query
+   * @returns {array} - An array of objects.
+   */
+  async getSupplierCatalog(supplierId, page = 1) {
+    const options = {
+      params: {
+        ab_testing: "false",
+        appType: Constants.APPTYPES.DESKTOP,
+        curr: Constants.CURRENCIES.RUB,
+        dest: this.destination.ids[0],
+        hide_dtype: "13",
+        lang: Constants.LOCALES.RU,
+        page: page,
+        sort: "popular",
+        spp: "30",
+        supplier: supplierId,
+        uclusters: "3",
+      },
+    };
+    const res = await this.session.get(
+      Constants.URLS.SUPPLIER.CATALOG,
+      options
+    );
+    return res.data || {};
+  }
+
+  getPageCount(totalProducts) {
+    let totalPages = Math.round(totalProducts / 100 + 0.5);
+    if (totalPages > Constants.PAGES_PER_CATALOG) {
+      totalPages = Constants.PAGES_PER_CATALOG;
+    }
+
+    return totalPages;
   }
 }
 
