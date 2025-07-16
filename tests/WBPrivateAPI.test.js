@@ -58,8 +58,8 @@ describe("Проверка поиска товаров WBPrivateAPI.search()", (
     expect(catalog.products.length).toBe(300);
   });
 
-  test('Проверка фильтрации товаров по бренду и ключевому запросу "Зип пакет"', async () => {
-    const filters = [{ type: "fbrand", value: 568569 }];
+  test('Проверка фильтрации товаров по бренду и ключевому запросу "Швабра zetter"', async () => {
+    const filters = [{ type: "fbrand", value: 244907 }];
     const catalog = await wbapi.search("Зип пакет", 1, 0, filters);
     expect(catalog.products.length).toBeGreaterThan(0);
     expect(
@@ -67,8 +67,8 @@ describe("Проверка поиска товаров WBPrivateAPI.search()", (
     ).toBeTruthy();
   });
 
-  test('Проверка фильтрации товаров по поставщику и ключевому запросу "Зип пакет"', async () => {
-    const filters = [{ type: "fsupplier", value: 845298 }];
+  test('Проверка фильтрации товаров по поставщику и ключевому запросу "Швабра zetter"', async () => {
+    const filters = [{ type: "fsupplier", value: 206198 }];
     const catalog = await wbapi.search("Зип пакет", 1, 0, filters);
     expect(catalog.products.length).toBeGreaterThan(0);
     expect(
@@ -76,17 +76,17 @@ describe("Проверка поиска товаров WBPrivateAPI.search()", (
     ).toBeTruthy();
   });
 
-  test('Проверка фильтрации товаров по бренду и по поставщику с ключевым запросом "торшер"', async () => {
+  test('Проверка фильтрации товаров по бренду и по поставщику с ключевым запросом "Швабра zetter"', async () => {
     const filters = [
-      { type: "fbrand", value: 310484464 },
-      { type: "fsupplier", value: 1179677 },
+      { type: "fbrand", value: 244907 },
+      { type: "fsupplier", value: 206198 },
     ];
-    const catalog = await wbapi.search("торшер", 1, 0, filters);
-    expect(catalog.products.length).toBeGreaterThan(0);
-    expect(
-      catalog.products.every((p) => p.brandId === filters[0].value) &&
-      catalog.products.every((p) => p.supplierId === filters[1].value)
-    ).toBeTruthy();
+    const catalog = await wbapi.search("Швабра zetter", 1, 0, filters);
+      expect(catalog.products.length).toBeGreaterThan(0);
+      expect(
+        catalog.products.every((p) => p.brandId === filters[0].value) &&
+          catalog.products.every((p) => p.supplierId === filters[1].value)
+      ).toBeTruthy();
   });
 
   test("Проверка совместимости с axios-retry", async () => {
@@ -132,9 +132,9 @@ describe("Проверка поиска товаров WBPrivateAPI.search()", (
 
   test("Проверка метода .getListOfProducts() на возврат найденных товаров", async () => {
     const products = Array(10)
-      .fill(91749372)
+      .fill(304390393)
       .map((v, idx) => v + idx);
-    const list = await wbapi.getListOfProducts(products);
+      const list = await wbapi.getListOfProducts(products);
     expect(list.length).toBeGreaterThan(0);
   });
 });
@@ -143,5 +143,34 @@ describe("Проверка выдачи данных по продавцу", () 
   test("Проверка метода .getSupplierInfo()", async () => {
     const supplier = await wbapi.getSupplierInfo(1136572);
     expect(supplier.supplierId).toBe(1136572);
+  });
+
+  test("Проверка метода .SupplierTotalProducts() на получение общего количества товаров поставщика", async () => {
+    const supplierId = 18740;
+    const totalProducts = await wbapi.SupplierTotalProducts(supplierId);
+    expect(totalProducts).toBeGreaterThan(0);
+  });
+
+  test("Проверка метода .getSupplierCatalogAll() на получение всех товаров поставщика", async () => {
+    const supplierId = 18740;
+    const catalog = await wbapi.getSupplierCatalogAll(supplierId, 1); // Получаем только 1 страницу для теста
+    expect(catalog).toBeDefined();
+    expect(catalog.products).toBeDefined();
+    expect(catalog.totalProducts).toBeGreaterThan(0);
+    expect(catalog.pages).toBeGreaterThan(0);
+    if (catalog.products.length > 0) {
+      expect(
+        catalog.products.every((p) => p.supplierId === supplierId)
+      ).toBeTruthy();
+    }
+  });
+
+  test("Проверка метода .getSupplierCatalogPage() на получение одной страницы товаров поставщика", async () => {
+    const supplierId = 18740;
+    const products = await wbapi.getSupplierCatalogPage(supplierId, 1, 0);
+    expect(Array.isArray(products)).toBeTruthy();
+    if (products.length > 0) {
+      expect(products[0]).toHaveProperty("id");
+    }
   });
 });

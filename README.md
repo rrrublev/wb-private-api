@@ -1,16 +1,18 @@
+# wb-private-api (форк от [glmn/wb-private-api](https://github.com/glmn/wb-private-api))
+**Доработано и оптимизировано** [rrrublev](https://github.com/rrrublev)
 
+## Оригинальный проект
+Этот модуль является форком репозитория [glmn/wb-private-api](https://github.com/glmn/wb-private-api) под лицензией ISC.  
+Оригинальный автор: Stanislav Gelman (@glmn)  
+Лицензия: ISC
 
-![GitHub package.json version](https://img.shields.io/github/package-json/v/glmn/wb-private-api) ![GitHub last commit](https://img.shields.io/github/last-commit/glmn/wb-private-api) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/glmn/wb-private-api) ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/glmn/wb-private-api/Node.js%20CI)
+![GitHub package.json version](https://img.shields.io/github/package-json/v/rrrublev/wb-private-api) ![GitHub last commit](https://img.shields.io/github/last-commit/rrrublev/wb-private-api) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/rrrublev/wb-private-api)
 
 ![npm](https://nodei.co/npm/wb-private-api.png)
 
 NodeJS модуль. Работает через приватное API Wildberries
 
 <p align="center"><h3>🍒 wb-private-api</h3></p>
-
-> <p>Разработано при спонсировании:</p>
-> <p><img src="https://github.com/glmn/glmn/assets/1326151/549b8bed-60c3-4f6e-8f5a-8592c63467b6" height="35"></p>
-> <p><img src="https://github.com/glmn/glmn/assets/1326151/5f38f86c-7014-4e73-8fa1-c6657a902826" height="12"> <b><a href="https://neuromarket.online/?utm_source=github&utm_medium=wb-private-api&utm_content=description">Нейромаркет</a></b> - Глубокий Анализ товаров на Wildberries.</p>
 
 Установка: `npm i wb-private-api`
 
@@ -95,6 +97,46 @@ const initiate = async () => {
 initiate();
 ```
 
+### Получение всех товаров поставщика с постраничным перебором
+
+```js
+import { WBPrivateAPI, Constants } from "wb-private-api";
+
+const supplierId = 845298; // ID поставщика
+
+/*
+ * Select destination and init WBPrivateAPI with it
+ */
+const destination = Constants.DESTINATIONS.MOSCOW;
+const wbapi = new WBPrivateAPI({ destination });
+
+const initiate = async () => {
+  /*
+   * Get total products count for supplier
+   */
+  const totalProducts = await wbapi.SupplierTotalProducts(supplierId);
+  console.log(`Общее количество товаров поставщика: ${totalProducts}`);
+
+  /*
+   * Get all supplier products with pagination
+   * pageCount = 0 means get all pages (up to 100 pages max)
+   * pageCount = 3 means get only first 3 pages
+   */
+  const catalog = await wbapi.getSupplierCatalogAll(supplierId, 3);
+  
+  console.log(`Получено товаров: ${catalog.products.length}`);
+  console.log(`Всего страниц: ${catalog.pages}`);
+  console.log(`Общее количество товаров: ${catalog.totalProducts}`);
+
+  // Display first 5 products
+  catalog.products.slice(0, 5).forEach((product, index) => {
+    console.log(`${index + 1}. ${product.name} - ${product.price?.afterSale || 'N/A'} руб.`);
+  });
+};
+
+initiate();
+```
+
 ## `WBPrivateAPI` методы
 
 `.search(keyword, pageCount, retries = 0, filters = [])` - Поиск всех товаров по Ключевому слову `keyword`. `pageCount` отвечает за кол-во необходимых страниц для прохода. Если `pageCount = 0`, то будет взяты все страницы или `100`, если их больше. `retries` отвечает за количество попыток выполнить запрос, если в ответ был получен статус 5хх или 429. `filters` это массив с объектами вида `[{type: 'fbrand' value: 11399 }]`, необходим для фильтрации поисковой выдачи по брендам, поставщикам, цене и т.д. Метод возвращает объект `WBCatalog`
@@ -110,6 +152,12 @@ initiate();
 `.getPromos()` - Возвращает массив текущих промо-акций на WB
 
 `.getListOfProducts(productIds)` - Возвращает массив найденных артикулов на WB с деталями (Не оборачивается в WBProduct)
+
+`.SupplierTotalProducts(supplierId)` - Возвращает общее количество товаров поставщика
+
+`.getSupplierCatalogAll(supplierId, pageCount = 0, retries = 0)` - Получает все товары поставщика с постраничным перебором. `pageCount` отвечает за кол-во необходимых страниц для прохода. Если `pageCount = 0`, то будет взяты все страницы или `100`, если их больше. `retries` отвечает за количество попыток выполнить запрос, если в ответ был получен статус 5хх или 429. Метод возвращает объект `WBCatalog`
+
+`.getSupplierCatalogPage(supplierId, page = 1, retries = 0)` - Получает товары поставщика с указанной страницы. Используется внутри `getSupplierCatalogAll` для постраничного перебора
 
 ## `WBCatalog` методы
 

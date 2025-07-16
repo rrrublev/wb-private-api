@@ -23,7 +23,7 @@ module.exports = {
       CARD: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/info/ru/card.json",
       SELLERS: "https://basket-{0}.wb.ru/vol{1}/part{2}/{3}/info/sellers.json",
       EXTRADATA: "https://www.wildberries.ru/webapi/product/{}/data",
-      DETAILS: "https://card.wb.ru/cards/detail",
+      DETAILS: "https://card.wb.ru/cards/v4/detail",
       FEEDBACKS: "https://feedbacks{0}.wb.ru/feedbacks/v1/{1}",
       QUESTIONS: "https://questions.wildberries.ru/api/v1/questions",
       DELIVERYDATA: "https://card.wb.ru/cards/list",

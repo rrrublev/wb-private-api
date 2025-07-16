@@ -105,3 +105,9 @@ dist
 
 # Agents
 .continue
+.kiro
+.claude
+
+#dev
+dev
+.vscode

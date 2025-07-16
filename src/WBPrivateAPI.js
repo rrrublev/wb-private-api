@@ -91,7 +91,7 @@ class WBPrivateAPI {
       query: keyword,
       resultset: "catalog",
       sort: "popular",
-      spp: 30,
+      spp: "30",
       suppressSpellcheck,
     };
     if (page !== 1) {
@@ -221,7 +221,7 @@ class WBPrivateAPI {
           query: catalogConfig.keyword.toLowerCase(),
           resultset: "catalog",
           sort: "popular",
-          spp: 30,
+          spp: "30",
           suppressSpellcheck: false,
         },
         headers: {
@@ -427,6 +427,115 @@ class WBPrivateAPI {
       options
     );
     return res.data || {};
+  }
+
+  /**
+   * It gets all products from supplier catalog with pagination
+   * @param {number} supplierId - supplier ID
+   * @param {number} pageCount - Number of pages to retrieve (0 = all pages)
+   * @param {number} retries - Number of retries for failed requests
+   * @returns {WBCatalog} WBCatalog object with all supplier products
+   */
+  async getSupplierCatalogAll(supplierId, pageCount = 0, retries = 0) {
+    const products = [];
+
+    const totalProducts = await this.SupplierTotalProducts(supplierId);
+    if (totalProducts === 0) {
+      const catalogConfig = {
+        supplierId,
+        catalog_type: "supplier",
+        catalog_value: `supplier=${supplierId}`,
+        pages: 0,
+        products: [],
+        totalProducts: 0,
+      };
+      return new WBCatalog(catalogConfig);
+    }
+
+    const catalogConfig = {
+      supplierId,
+      catalog_type: "supplier",
+      catalog_value: `supplier=${supplierId}`,
+    };
+
+    let totalPages = this.getPageCount(totalProducts);
+
+    if (pageCount > 0) {
+      if (pageCount < totalPages) {
+        totalPages = pageCount;
+      }
+    }
+
+    const threads = Array(totalPages)
+      .fill(1)
+      .map((x, y) => x + y);
+    const parsedPages = await Promise.all(
+      threads.map((thr) =>
+        this.getSupplierCatalogPage(supplierId, thr, retries)
+      )
+    );
+
+    parsedPages.map((val) => {
+      if (Array.isArray(val)) {
+        val.map((v) => products.push(new WBProduct(v)));
+      }
+    });
+
+    Object.assign(catalogConfig, {
+      pages: totalPages,
+      products,
+      totalProducts,
+    });
+
+    return new WBCatalog(catalogConfig);
+  }
+
+  /**
+   * It gets products from specified supplier catalog page
+   * @param {number} supplierId - supplier ID
+   * @param {number} page - page number
+   * @param {number} retries - number of retries
+   * @returns {array} - An array of products
+   */
+  async getSupplierCatalogPage(supplierId, page = 1, retries = 0) {
+    return new Promise(async (resolve) => {
+      let foundProducts;
+      const options = {
+        params: {
+          ab_testing: "false",
+          appType: Constants.APPTYPES.DESKTOP,
+          curr: Constants.CURRENCIES.RUB,
+          dest: this.destination.ids[0],
+          hide_dtype: "13",
+          lang: Constants.LOCALES.RU,
+          page: page,
+          sort: "popular",
+          spp: "30",
+          supplier: supplierId,
+          uclusters: "3",
+        },
+        "axios-retry": {
+          retries,
+          retryCondition: (error) => {
+            return (
+              error.response.status === 429 || error.response.status >= 500
+            );
+          },
+        },
+      };
+
+      try {
+        const url = Constants.URLS.SUPPLIER.CATALOG;
+        const res = await this.session.get(url, options);
+        if (res.status === 429 || res.status === 500) {
+          throw new Error("BAD STATUS");
+        }
+        foundProducts = res.data.data?.products || [];
+      } catch (err) {
+        throw new Error(err);
+      }
+      resolve(foundProducts);
+    });
   }
 
   getPageCount(totalProducts) {

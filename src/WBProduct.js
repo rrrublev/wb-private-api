@@ -35,6 +35,10 @@ class WBProduct {
     return new WBProduct(
       Object.assign(instance._rawResponse, { id: productId })
     );
+
+    // Создаем новый экземпляр с данными из нового API
+    // const productData = instance._rawResponse.details;
+    // return new WBProduct(productData);
   }
 
   /**
@@ -111,16 +115,16 @@ class WBProduct {
     const options = {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
+        curr: Constants.CURRENCIES.RUB,
         dest: Constants.DESTINATIONS.MOSCOW.ids[0],
-        regions: Constants.DESTINATIONS.MOSCOW.regions[0],
-        stores: Constants.STORES.UFO,
-        locale: Constants.LOCALES.RU,
+        spp: "30",
+        lang: Constants.LOCALES.RU,
         nm: `${this.id};`,
       },
     };
 
     const res = await this.session.get(Constants.URLS.PRODUCT.DETAILS, options);
-    const rawData = res.data.data.products[0];
+    const rawData = res.data.products[0];
     Object.assign(this._rawResponse, { details: rawData });
   }
 
