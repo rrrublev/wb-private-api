@@ -8,11 +8,11 @@ module.exports = {
       "https://static-basket-01.wbbasket.ru/vol0/data/main-menu-ru-ru-v3.json",
     BRAND: {
       IMAGE: "https://images.wbstatic.net/brands/small/{}.jpg",
-      CATALOG: "https://catalog.wb.ru/sellers/v2/catalog",
+      CATALOG: "https://catalog.wb.ru/brands/v4/catalog",
     },
     SUPPLIER: {
       INFO: "https://static-basket-01.wbbasket.ru/vol0/data/supplier-by-id/{0}.json",
-      CATALOG: "https://catalog.wb.ru/sellers/v2/catalog",
+      CATALOG: "https://catalog.wb.ru/sellers/v4/catalog",
       TOTALPRODUCTS: "https://catalog.wb.ru/sellers/v8/filters",
       SHIPMENT:
         "https://suppliers-shipment-2.wildberries.ru/api/v1/suppliers/{0}",
@@ -36,7 +36,7 @@ module.exports = {
       ADS: "https://catalog-ads.wildberries.ru/api/v5/search",
       CAROUSEL_ADS: "https://carousel-ads.wildberries.ru/api/v4/carousel",
       HINT: "https://suggests.wb.ru/suggests/api/v7/hint",
-      LIST: "https://card.wb.ru/cards/list",
+      LIST: "https://card.wb.ru/cards/v4/list",
     },
     IMAGES: {
       TINY: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/images/tm/{4}.jpg", // 900x1200
@@ -2850,5 +2850,5 @@ module.exports = {
     COMMON: "common",
   },
   USERAGENT:
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
 };

@@ -167,14 +167,12 @@ class WBPrivateAPI {
   async SupplierTotalProducts(supplierId) {
     const res = await this.session.get(Constants.URLS.SUPPLIER.TOTALPRODUCTS, {
       params: {
-        ab_testing: "false",
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
         dest: this.destination.ids[0],
         filters: "xsubject",
         spp: "30",
         supplier: supplierId,
-        uclusters: "2",
       },
     });
 
@@ -291,7 +289,6 @@ class WBPrivateAPI {
   async keyHint(query) {
     const options = {
       params: {
-        ab_testing: "false",
         query,
         gender: Constants.SEX.COMMON,
         locale: Constants.LOCALES.RU,
@@ -367,13 +364,15 @@ class WBPrivateAPI {
   async getListOfProducts(productIds) {
     const options = {
       params: {
-        nm: productIds.join(";"),
         appType: Constants.APPTYPES.DESKTOP,
         dest: this.destination.ids[0],
+        curr: Constants.CURRENCIES.RUB,
+        lang: Constants.LOCALES.RU,
+        nm: productIds.join(";"),
       },
     };
     const res = await this.session.get(Constants.URLS.SEARCH.LIST, options);
-    return res.data.data.products || [];
+    return res.data.products || [];
   }
 
   /**
@@ -409,17 +408,14 @@ class WBPrivateAPI {
   async getSupplierCatalog(supplierId, page = 1) {
     const options = {
       params: {
-        ab_testing: "false",
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
         dest: this.destination.ids[0],
-        hide_dtype: "13",
         lang: Constants.LOCALES.RU,
         page: page,
         sort: "popular",
         spp: "30",
         supplier: supplierId,
-        uclusters: "3",
       },
     };
     const res = await this.session.get(
@@ -502,17 +498,14 @@ class WBPrivateAPI {
       let foundProducts;
       const options = {
         params: {
-          ab_testing: "false",
           appType: Constants.APPTYPES.DESKTOP,
           curr: Constants.CURRENCIES.RUB,
           dest: this.destination.ids[0],
-          hide_dtype: "13",
           lang: Constants.LOCALES.RU,
           page: page,
           sort: "popular",
           spp: "30",
           supplier: supplierId,
-          uclusters: "3",
         },
         "axios-retry": {
           retries,

@@ -60,7 +60,7 @@ describe("Проверка поиска товаров WBPrivateAPI.search()", (
 
   test('Проверка фильтрации товаров по бренду и ключевому запросу "Швабра zetter"', async () => {
     const filters = [{ type: "fbrand", value: 244907 }];
-    const catalog = await wbapi.search("Зип пакет", 1, 0, filters);
+    const catalog = await wbapi.search("Швабра zetter", 1, 0, filters);
     expect(catalog.products.length).toBeGreaterThan(0);
     expect(
       catalog.products.every((p) => p.brandId === filters[0].value)
@@ -69,7 +69,7 @@ describe("Проверка поиска товаров WBPrivateAPI.search()", (
 
   test('Проверка фильтрации товаров по поставщику и ключевому запросу "Швабра zetter"', async () => {
     const filters = [{ type: "fsupplier", value: 206198 }];
-    const catalog = await wbapi.search("Зип пакет", 1, 0, filters);
+    const catalog = await wbapi.search("Швабра zetter", 1, 0, filters);
     expect(catalog.products.length).toBeGreaterThan(0);
     expect(
       catalog.products.every((p) => p.supplierId === filters[0].value)

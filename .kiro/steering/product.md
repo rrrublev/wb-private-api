@@ -1,25 +1,25 @@
 # Product Overview
 
-**wb-private-api** is a Node.js library that provides access to Wildberries marketplace data through their private API endpoints.
+**wb-private-api** is a Node.js library for interacting with Wildberries marketplace private API. This is a fork of the original glmn/wb-private-api project, optimized and enhanced by @rrrublev.
 
 ## Core Functionality
-- Product search and catalog browsing
-- Product details, stocks, reviews, and questions
-- Advertising data (search ads, carousel ads)
-- Supplier information and catalogs
-- Search suggestions and similar products
-- Promotional campaigns data
 
-## Target Users
-- E-commerce developers
-- Marketplace analytics tools
-- Price monitoring services
-- Product research applications
+- Search products by keywords with pagination and filtering
+- Retrieve product details, stocks, feedbacks, and questions
+- Access supplier catalogs and information
+- Search for advertisements and promotional content
+- Get delivery data and warehouse information
+- Support for multiple destinations (Moscow, regions, etc.)
 
 ## Key Features
-- Async/await API design
-- Built-in retry mechanisms for reliability
-- Support for multiple destinations (cities/regions)
+
+- Asynchronous API with Promise-based methods
+- Built-in retry mechanisms for failed requests
 - Comprehensive product data extraction
-- Search filtering capabilities
-- Rate limiting handling
+- Support for Wildberries marketplace regions
+- Extensive warehouse and destination mapping
+- Rate limiting and error handling
+
+## Target Users
+
+Developers building e-commerce analytics, price monitoring, marketplace research tools, or integration solutions for Wildberries marketplace.
