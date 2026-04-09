@@ -16,6 +16,35 @@ NodeJS модуль. Работает через приватное API Wildberr
 
 Установка: `npm i wb-private-api`
 
+## Получение токена
+
+Библиотека использует внутреннее API Wildberries, для доступа к которому требуется токен `x_wbaas_token`. Авторизация на сайте не нужна.
+
+**Как получить:**
+
+1. Откройте [wildberries.ru](https://www.wildberries.ru) в браузере, дождитесь полной загрузки страницы
+2. Откройте DevTools (`F12`) → вкладка **Console**
+3. Вставьте и выполните содержимое файла [`scripts/get-wb-token.js`](scripts/get-wb-token.js)
+4. Скопируйте выведенную строку JSON и сохраните в файл `.wbaas_token` в корне проекта
+
+Токен действителен ~14 дней. По истечении повторите процедуру.
+
+**Использование токена в коде:**
+
+```js
+// Вариант 1 — файл .wbaas_token подхватывается автоматически
+const wbapi = new WBPrivateAPI({ destination: Constants.DESTINATIONS.MOSCOW });
+
+// Вариант 2 — передать токен явно
+const wbapi = new WBPrivateAPI({
+  destination: Constants.DESTINATIONS.MOSCOW,
+  wbaasToken: "ВАШ_ТОКЕН"
+});
+
+// Вариант 3 — установить после создания
+wbapi.setToken("ВАШ_ТОКЕН");
+```
+
 После установки рекомендую протестировать работоспособность
 
 ![image](https://github.com/glmn/wb-private-api/assets/1326151/e1d04808-1ba3-40cf-96bf-c6c5868ad4b8)

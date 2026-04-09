@@ -1,3 +1,5 @@
+package-lock.json
+
 # Logs
 logs
 *.log
@@ -110,3 +112,9 @@ dist
 #dev
 dev
 .vscode
+
+# Antibot research & debug scripts (not for production)
+antibot/
+
+# Cached antibot token (contains secrets)
+.wbaas_token

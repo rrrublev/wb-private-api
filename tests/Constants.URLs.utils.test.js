@@ -21,22 +21,46 @@ describe("Утилиты для работы с URL из Constants", () => {
     // Функция для получения номера корзины
     function getBasketNumber(productId) {
       const BASKETS = [
-        [0, 143],
-        [144, 287],
-        [288, 431],
-        [432, 719],
-        [720, 1007],
-        [1008, 1061],
-        [1062, 1115],
-        [1116, 1169],
-        [1170, 1313],
-        [1314, 1601],
-        [1602, 1655],
-        [1656, 1919],
-        [1920, 2045],
-        [2046, 2189],
-        [2091, 2405],
-        [2406, 2621],
+        [0, 143], // basket-01
+        [144, 287], // basket-02
+        [288, 431], // basket-03
+        [432, 719], // basket-04
+        [720, 1007], // basket-05
+        [1008, 1061], // basket-06
+        [1062, 1115], // basket-07
+        [1116, 1169], // basket-08
+        [1170, 1313], // basket-09
+        [1314, 1601], // basket-10
+        [1602, 1655], // basket-11
+        [1656, 1919], // basket-12
+        [1920, 2045], // basket-13
+        [2046, 2189], // basket-14
+        [2190, 2405], // basket-15
+        [2406, 2621], // basket-16
+        [2622, 2837], // basket-17
+        [2838, 3053], // basket-18
+        [3054, 3269], // basket-19
+        [3270, 3485], // basket-20
+        [3486, 3701], // basket-21
+        [3702, 3917], // basket-22
+        [3918, 4133], // basket-23
+        [4134, 4349], // basket-24
+        [4350, 4565], // basket-25
+        [4566, 4877], // basket-26
+        [4878, 5189], // basket-27
+        [5190, 5501], // basket-28
+        [5502, 5813], // basket-29
+        [5814, 6125], // basket-30
+        [6126, 6437], // basket-31
+        [6438, 6749], // basket-32
+        [6750, 7061], // basket-33
+        [7062, 7373], // basket-34
+        [7374, 7685], // basket-35
+        [7686, 7997], // basket-36
+        [7998, 8309], // basket-37
+        [8310, 8741], // basket-38
+        [8742, 9173], // basket-39
+        [9174, 9605], // basket-40
       ];
 
       const vol = parseInt(productId / 100000, 10);
@@ -50,7 +74,9 @@ describe("Утилиты для работы с URL из Constants", () => {
     }
 
     test("Корректное построение URL карточки товара", () => {
-      const testProductIds = [177899980, 60059650, 304390393, 67858518];
+      const testProductIds = [
+        177899980, 60059650, 304390393, 67858518, 313669313,
+      ];
 
       testProductIds.forEach((productId) => {
         const url = buildProductURL(productId, Constants.URLS.PRODUCT.CARD);
@@ -63,35 +89,35 @@ describe("Утилиты для работы с URL из Constants", () => {
 
         // Проверяем что URL содержит правильные компоненты
         expect(url).toContain(
-          `basket-${actualBasket < 10 ? "0" + actualBasket : actualBasket}`
+          `basket-${actualBasket < 10 ? "0" + actualBasket : actualBasket}`,
         );
         expect(url).toContain(`vol${actualVol}`);
         expect(url).toContain(`part${actualPart}`);
         expect(url).toContain(`${productId}`);
 
         console.log(
-          `✅ Товар ${productId}: корзина ${actualBasket}, vol ${actualVol}, part ${actualPart}`
+          `✅ Товар ${productId}: корзина ${actualBasket}, vol ${actualVol}, part ${actualPart}`,
         );
         console.log(`   URL: ${url}`);
       });
     });
 
     test("Корректное построение URL изображений товара", () => {
-      const productId = 177899980;
+      const productId = 313669313;
       const imageTypes = ["TINY", "BIG", "SMALL", "MEDIUM"];
 
       imageTypes.forEach((imageType) => {
         const url = buildProductURL(
           productId,
-          Constants.URLS.IMAGES[imageType]
+          Constants.URLS.IMAGES[imageType],
         ).replace("{4}", "1"); // Номер изображения
 
-        expect(url).toContain("basket-12"); // Корзина для этого товара
-        expect(url).toContain("vol1778");
-        expect(url).toContain("part177899");
-        expect(url).toContain("177899980");
+        expect(url).toContain("basket-19"); // Корзина для этого товара
+        expect(url).toContain("vol3136");
+        expect(url).toContain("part313669");
+        expect(url).toContain("313669313");
         expect(url).toContain("images");
-        expect(url).toContain(".jpg");
+        expect(url).toContain(".webp");
 
         console.log(`✅ ${imageType}: ${url}`);
       });
@@ -104,7 +130,7 @@ describe("Утилиты для работы с URL из Constants", () => {
         const infoUrl = Constants.URLS.SUPPLIER.INFO.replace("{0}", supplierId);
         const shipmentUrl = Constants.URLS.SUPPLIER.SHIPMENT.replace(
           "{0}",
-          supplierId
+          supplierId,
         );
 
         expect(infoUrl).toContain(`supplier-by-id/${supplierId}.json`);
@@ -128,7 +154,7 @@ describe("Утилиты для работы с URL из Constants", () => {
           const numToUint8Array = function (r) {
             const t = new Uint8Array(8);
             for (let n = 0; n < 8; n++)
-              (t[n] = r % 256), (r = Math.floor(r / 256));
+              ((t[n] = r % 256), (r = Math.floor(r / 256)));
             return t;
           };
 
@@ -145,7 +171,7 @@ describe("Утилиты для работы с URL из Constants", () => {
         const partition_id = crc16Arc(imtId) % 100 >= 50 ? "2" : "1";
         const url = Constants.URLS.PRODUCT.FEEDBACKS.replace(
           "{0}",
-          partition_id
+          partition_id,
         ).replace("{1}", imtId);
 
         expect(url).toContain(`feedbacks${partition_id}.wb.ru`);
@@ -216,12 +242,12 @@ describe("Утилиты для работы с URL из Constants", () => {
 
       allUrls.forEach(({ path, url }) => {
         const hasAllowedDomain = allowedDomains.some((domain) =>
-          url.includes(domain)
+          url.includes(domain),
         );
         expect(hasAllowedDomain).toBeTruthy();
 
         const matchedDomain = allowedDomains.find((domain) =>
-          url.includes(domain)
+          url.includes(domain),
         );
         console.log(`✅ ${path}: домен ${matchedDomain} разрешен`);
       });
@@ -244,11 +270,11 @@ describe("Утилиты для работы с URL из Constants", () => {
           expect(basketNumber).toBeLessThanOrEqual(16);
 
           console.log(
-            `✅ ${description}: ID ${productId} -> корзина ${basketNumber}`
+            `✅ ${description}: ID ${productId} -> корзина ${basketNumber}`,
           );
         } catch (error) {
           console.log(
-            `⚠️  ${description}: ошибка для ID ${productId} - ${error.message}`
+            `⚠️  ${description}: ошибка для ID ${productId} - ${error.message}`,
           );
         }
       });

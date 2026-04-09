@@ -13,7 +13,9 @@ module.exports = {
     SUPPLIER: {
       INFO: "https://static-basket-01.wbbasket.ru/vol0/data/supplier-by-id/{0}.json",
       CATALOG: "https://catalog.wb.ru/sellers/v4/catalog",
+      CATALOG_INTERNAL: "https://www.wildberries.ru/__internal/catalog/sellers/v4/catalog",
       TOTALPRODUCTS: "https://catalog.wb.ru/sellers/v8/filters",
+      TOTALPRODUCTS_INTERNAL: "https://www.wildberries.ru/__internal/catalog/sellers/v8/filters",
       SHIPMENT:
         "https://suppliers-shipment-2.wildberries.ru/api/v1/suppliers/{0}",
     },
@@ -21,7 +23,7 @@ module.exports = {
     PRODUCT: {
       CONTENT: "https://wbx-content-v2.wbstatic.net/ru/{}.json",
       CARD: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/info/ru/card.json",
-      SELLERS: "https://basket-{0}.wb.ru/vol{1}/part{2}/{3}/info/sellers.json",
+      SELLERS: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/info/sellers.json",
       EXTRADATA: "https://www.wildberries.ru/webapi/product/{}/data",
       DETAILS: "https://card.wb.ru/cards/v4/detail",
       FEEDBACKS: "https://feedbacks{0}.wb.ru/feedbacks/v1/{1}",
@@ -30,8 +32,10 @@ module.exports = {
     },
     SEARCH: {
       SIMILAR_BY_NM: "https://in-similar.wildberries.ru/",
-      TOTALPRODUCTS: "https://search.wb.ru/exactmatch/ru/common/v13/search",
-      EXACTMATCH: "https://search.wb.ru/exactmatch/ru/common/v13/search",
+      TOTALPRODUCTS: "https://search.wb.ru/exactmatch/ru/common/v18/search",
+      TOTALPRODUCTS_INTERNAL: "https://www.wildberries.ru/__internal/search/exactmatch/ru/common/v18/search",
+      EXACTMATCH: "https://search.wb.ru/exactmatch/ru/common/v18/search",
+      EXACTMATCH_INTERNAL: "https://www.wildberries.ru/__internal/search/exactmatch/ru/common/v18/search",
       CATALOG: "https://wbxcatalog-ru.wildberries.ru/{}/catalog",
       ADS: "https://catalog-ads.wildberries.ru/api/v5/search",
       CAROUSEL_ADS: "https://carousel-ads.wildberries.ru/api/v4/carousel",
@@ -39,12 +43,12 @@ module.exports = {
       LIST: "https://card.wb.ru/cards/v4/list",
     },
     IMAGES: {
-      TINY: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/images/tm/{4}.jpg", // 900x1200
-      BIG: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/images/big/{4}.jpg", // 900x1200
+      TINY: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/images/tm/{4}.webp", // 900x1200
+      BIG: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/images/big/{4}.webp", // 900x1200
       SMALL:
-        "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/images/c246x328/{4}.jpg", // 900x1200
+        "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/images/c246x328/{4}.webp", // 900x1200
       MEDIUM:
-        "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/images/c516x688/{4}.jpg", // 900x1200
+        "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/images/c516x688/{4}.webp", // 900x1200
       FEEDBACK_BASE: "https://feedbackphotos.wbstatic.net/",
     },
   },
@@ -2850,5 +2854,5 @@ module.exports = {
     COMMON: "common",
   },
   USERAGENT:
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
 };

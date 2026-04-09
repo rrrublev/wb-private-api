@@ -119,7 +119,7 @@ class WBProduct {
         dest: Constants.DESTINATIONS.MOSCOW.ids[0],
         spp: "30",
         lang: Constants.LOCALES.RU,
-        nm: `${this.id};`,
+        nm: this.id,
       },
     };
 
@@ -199,10 +199,15 @@ class WBProduct {
 
     let newFeedbacks = [];
 
-    const partition_id = crc16Arc(this.imt_id) % 100 >= 50 ? "2" : "1";
+    const imt_id = this.imt_id ?? this._rawResponse.imt_id;
+    if (!imt_id) {
+      this.feedbacks = [];
+      return [];
+    }
+    const partition_id = crc16Arc(imt_id) % 100 >= 50 ? "2" : "1";
     const url = Constants.URLS.PRODUCT.FEEDBACKS.format(
       partition_id,
-      this.imt_id
+      imt_id
     );
 
     const res = await this.session.get(url);
@@ -258,9 +263,10 @@ class WBProduct {
       parsedPages.map((val) => newQuestions.push(...val));
     } else {
       const skip = (page - 1) * Constants.QUESTIONS_PER_PAGE;
+      const imt_id = this.imt_id ?? this._rawResponse.imt_id;
       const options = {
         params: {
-          imtId: this.imt_id,
+          imtId: imt_id,
           skip,
           take: Constants.QUESTIONS_PER_PAGE,
         },

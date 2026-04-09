@@ -1,6 +1,8 @@
 /* eslint-disable array-callback-return */
 /* eslint-disable camelcase */
 /* eslint-disable no-prototype-builtins */
+const fs = require("fs");
+const path = require("path");
 const format = require("string-format");
 const Constants = require("./Constants");
 const WBProduct = require("./WBProduct");
@@ -8,13 +10,37 @@ const Utils = require("./Utils");
 const WBCatalog = require("./WBCatalog");
 const SessionBuilder = require("./SessionBuilder");
 
+const TOKEN_FILE = path.resolve(__dirname, "../.wbaas_token");
+
+function _readTokenFile() {
+  try {
+    const data = JSON.parse(fs.readFileSync(TOKEN_FILE, "utf8"));
+    if (data.token && data.expires_at > Date.now()) return data.token;
+  } catch {}
+  return null;
+}
+
 format.extend(String.prototype, {});
 
 class WBPrivateAPI {
   /* Creating a new instance of the class WBPrivateAPI. */
-  constructor({ destination }) {
+  constructor({ destination, wbaasToken }) {
     this.session = SessionBuilder.create();
     this.destination = destination;
+    const token = wbaasToken || _readTokenFile();
+    if (token) {
+      SessionBuilder.setAntibotToken(this.session, token);
+    }
+  }
+
+  /**
+   * Устанавливает токен x_wbaas_token для доступа к внутренним API WB.
+   * Получить токен можно через консоль браузера на wildberries.ru:
+   * @see scripts/get-wb-token.js
+   * @param {string} token — значение cookie x_wbaas_token
+   */
+  setToken(token) {
+    SessionBuilder.setAntibotToken(this.session, token);
   }
 
   /**
@@ -101,12 +127,12 @@ class WBPrivateAPI {
       params.limit = limit;
     }
 
-    const res = await this.session.get(Constants.URLS.SEARCH.EXACTMATCH, {
+    const res = await this.session.get(this._searchUrl, {
       params,
       headers: {
         "x-queryid": Utils.Search.getQueryIdForSearch(),
       },
-      "axios-retry": {
+      retryOptions: {
         retries,
         retryCondition: (error) => {
           return error.response.status === 429 || error.response.status >= 500;
@@ -118,7 +144,7 @@ class WBPrivateAPI {
       res.data?.metadata?.hasOwnProperty("catalog_type") &&
       res.data?.metadata?.hasOwnProperty("catalog_value")
     ) {
-      return { ...res.data.metadata, products: res.data.data?.products };
+      return { ...res.data.metadata, products: res.data.data?.products ?? res.data.products };
     }
 
     if (
@@ -141,7 +167,7 @@ class WBPrivateAPI {
    * @returns Total number of products
    */
   async searchTotalProducts(keyword) {
-    const res = await this.session.get(Constants.URLS.SEARCH.TOTALPRODUCTS, {
+    const res = await this.session.get(this._searchTotalProductsUrl, {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         query: keyword,
@@ -165,7 +191,7 @@ class WBPrivateAPI {
    * @returns {number} Total number of products
    */
   async SupplierTotalProducts(supplierId) {
-    const res = await this.session.get(Constants.URLS.SUPPLIER.TOTALPRODUCTS, {
+    const res = await this.session.get(this._supplierTotalProductsUrl, {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
@@ -186,14 +212,16 @@ class WBPrivateAPI {
    * @returns Total number of products
    */
   async searchCustomFilters(keyword, filters) {
-    const res = await this.session.get(Constants.URLS.SEARCH.EXACTMATCH, {
+    const res = await this.session.get(this._searchUrl, {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
         dest: this.destination.ids[0],
+        lang: Constants.LOCALES.RU,
         query: keyword,
         resultset: "filters",
-        filters: filters.join(";"),
+        sort: "popular",
+        filters: filters.join(";")
       },
       headers: {
         "x-queryid": Utils.Search.getQueryIdForSearch(),
@@ -236,7 +264,7 @@ class WBPrivateAPI {
         options.params[filter["type"]] = filter["value"];
       }
       try {
-        const url = Constants.URLS.SEARCH.EXACTMATCH;
+        const url = this._searchUrl;
         const res = await this.session.get(url, options);
         if (res.status === 429 || res.status === 500) {
           throw new Error("BAD STATUS");
@@ -244,7 +272,7 @@ class WBPrivateAPI {
         if (res.data?.metadata?.catalog_value === "preset=11111111") {
           throw new Error("BAD CATALOG VALUE - 11111111");
         }
-        foundProducts = res.data.data.products;
+        foundProducts = res.data.data?.products ?? res.data.products;
       } catch (err) {
         throw new Error(err);
       }
@@ -334,11 +362,11 @@ class WBPrivateAPI {
         const url = Constants.URLS.PRODUCT.DELIVERYDATA;
         const res = await this.session.get(url, {
           ...options,
-          "axios-retry": {
+          retryOptions: {
             retries,
           },
         });
-        const foundProducts = res.data.data.products;
+        const foundProducts = res.data.data?.products ?? res.data.products;
         resolve(foundProducts);
       } catch (err) {
         throw new Error(err);
@@ -372,7 +400,7 @@ class WBPrivateAPI {
       },
     };
     const res = await this.session.get(Constants.URLS.SEARCH.LIST, options);
-    return res.data.products || [];
+    return res.data.data?.products ?? res.data.products ?? [];
   }
 
   /**
@@ -419,7 +447,7 @@ class WBPrivateAPI {
       },
     };
     const res = await this.session.get(
-      Constants.URLS.SUPPLIER.CATALOG,
+      this._supplierCatalogUrl,
       options
     );
     return res.data || {};
@@ -507,7 +535,7 @@ class WBPrivateAPI {
           spp: "30",
           supplier: supplierId,
         },
-        "axios-retry": {
+        retryOptions: {
           retries,
           retryCondition: (error) => {
             return (
@@ -518,17 +546,45 @@ class WBPrivateAPI {
       };
 
       try {
-        const url = Constants.URLS.SUPPLIER.CATALOG;
+        const url = this._supplierCatalogUrl;
         const res = await this.session.get(url, options);
         if (res.status === 429 || res.status === 500) {
           throw new Error("BAD STATUS");
         }
-        foundProducts = res.data.data?.products || [];
+        foundProducts = res.data.data?.products ?? res.data.products ?? [];
       } catch (err) {
         throw new Error(err);
       }
       resolve(foundProducts);
     });
+  }
+
+  get _hasAntibotToken() {
+    return !!this.session.defaults.headers.common["Cookie"];
+  }
+
+  get _searchUrl() {
+    return this._hasAntibotToken
+      ? Constants.URLS.SEARCH.EXACTMATCH_INTERNAL
+      : Constants.URLS.SEARCH.EXACTMATCH;
+  }
+
+  get _searchTotalProductsUrl() {
+    return this._hasAntibotToken
+      ? Constants.URLS.SEARCH.TOTALPRODUCTS_INTERNAL
+      : Constants.URLS.SEARCH.TOTALPRODUCTS;
+  }
+
+  get _supplierTotalProductsUrl() {
+    return this._hasAntibotToken
+      ? Constants.URLS.SUPPLIER.TOTALPRODUCTS_INTERNAL
+      : Constants.URLS.SUPPLIER.TOTALPRODUCTS;
+  }
+
+  get _supplierCatalogUrl() {
+    return this._hasAntibotToken
+      ? Constants.URLS.SUPPLIER.CATALOG_INTERNAL
+      : Constants.URLS.SUPPLIER.CATALOG;
   }
 
   getPageCount(totalProducts) {
