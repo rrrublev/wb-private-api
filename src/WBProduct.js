@@ -4,7 +4,7 @@ const Constants = require("./Constants");
 const SessionBuilder = require("./SessionBuilder");
 const WBFeedback = require("./WBFeedback");
 const WBQuestion = require("./WBQuestion");
-const { getBasketNumber } = require("./Utils").Card;
+const { getBasketNumber, videoURL } = require("./Utils").Card;
 
 format.extend(String.prototype, {});
 
@@ -69,18 +69,11 @@ class WBProduct {
 
     const sku = String(this.id);
 
-    const basketNumber = getBasketNumber(sku);
+    const basket = getBasketNumber(sku);
     const vol = sku.length > 5 ? sku.substring(0, limits[sku.length]) : 0;
     const part = sku.substring(0, limits[sku.length + 2]);
     const URL = Constants.URLS.PRODUCT.CARD;
-    const res = await this.session.get(
-      URL.format(
-        basketNumber < 10 ? `0${basketNumber}` : basketNumber,
-        vol,
-        part,
-        sku
-      )
-    );
+    const res = await this.session.get(URL.format(basket, vol, part, sku));
     const rawData = res.data;
     Object.assign(this._rawResponse, rawData);
   }
@@ -92,18 +85,11 @@ class WBProduct {
     const limits = [0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8];
 
     const sku = String(this.id);
-    const basketNumber = getBasketNumber(sku);
+    const basket = getBasketNumber(sku);
     const vol = sku.length > 5 ? sku.substring(0, limits[sku.length]) : 0;
     const part = sku.substring(0, limits[sku.length + 2]);
     const URL = Constants.URLS.PRODUCT.SELLERS;
-    const res = await this.session.get(
-      URL.format(
-        basketNumber < 10 ? `0${basketNumber}` : basketNumber,
-        vol,
-        part,
-        sku
-      )
-    );
+    const res = await this.session.get(URL.format(basket, vol, part, sku));
     const rawData = res.data;
     Object.assign(this._rawResponse, {
       seller: rawData,
@@ -280,6 +266,72 @@ class WBProduct {
     }
     this.questions = newQuestions;
     return newQuestions;
+  }
+  /**
+   * Returns video info for the product.
+   *
+   * WB JS source always requests "1440p" for HLS and "360p" for the MP4 preview —
+   * both quality values are hardcoded in WB's frontend (product_dist JS).
+   * hasVideo is determined by bit 4 (0x10) of viewFlags from the card details API,
+   * with fallback to media.has_video from card.json.
+   *
+   * Fetches the HLS playlist to get chunk count and duration.
+   * The full video is available only as HLS (.ts chunks).
+   * The MP4 preview (360p) is a single short file — not the full video.
+   *
+   * @param {string} [quality="1440p"] - HLS quality (WB always uses "1440p")
+   * @returns {Promise<{
+   *   hasVideo: boolean,
+   *   quality: string,
+   *   playlistUrl: string,
+   *   duration: number,
+   *   chunks: number,
+   *   hls: string[],
+   *   mp4Preview: string
+   * } | {hasVideo: false}>}
+   */
+  async getVideo(quality = "1440p") {
+    // bit 4 (16) of viewFlags = hasVideo (from WB source: _q.hasVideo = BigInt(16))
+    const viewFlags = this._rawResponse?.details?.viewFlags;
+    const hasVideo = viewFlags != null
+      ? !!(viewFlags & 16)
+      : this._rawResponse?.media?.has_video;
+    if (!hasVideo) return { hasVideo: false };
+
+    const playlistUrl = videoURL(this.id, "hls", quality);
+
+    let chunks = 0;
+    let duration = 0;
+    try {
+      const res = await this.session.get(playlistUrl, { responseType: "text" });
+      const m3u8 = typeof res.data === "string" ? res.data : "";
+      const extinf = m3u8.match(/#EXTINF:([\d.]+)/g) || [];
+      chunks = extinf.length;
+      duration = extinf.reduce((sum, line) => {
+        const val = parseFloat(line.replace("#EXTINF:", ""));
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+    } catch (_) {
+      return { hasVideo: true, quality, playlistUrl, error: "playlist fetch failed" };
+    }
+
+    const hls = Array.from({ length: chunks }, (_, i) =>
+      playlistUrl.replace("index.m3u8", `${i + 1}.ts`)
+    );
+
+    // MP4 exists only as a single 360p preview file (WB autoplay preview).
+    // It does not cover the full video duration.
+    const mp4Preview = videoURL(this.id, "mp4", "360p");
+
+    return {
+      hasVideo: true,
+      quality,
+      playlistUrl,
+      duration: Math.round(duration),
+      chunks,
+      hls,
+      mp4Preview,
+    };
   }
 }
 

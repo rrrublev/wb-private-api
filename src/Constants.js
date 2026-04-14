@@ -51,6 +51,16 @@ module.exports = {
         "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/images/c516x688/{4}.webp", // 900x1200
       FEEDBACK_BASE: "https://feedbackphotos.wbstatic.net/",
     },
+    // vol   = nm_id % 144
+    // part  = floor(nm_id / 10000)
+    // basket= switch(vol): <=11→"01", <=23→"02", ..., <=131→"11", <=143→"12", else "13"
+    // Source: WB urlVideoProduct() in product_dist JS
+    VIDEO: {
+      // HLS playlist (m3u8). WB always requests "1440p". Use Utils.Card.videoURL(id, "hls")
+      HLS: "https://videonme-basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/hls/{4}/index.m3u8",
+      // MP4 preview. WB hardcodes "1.mp4" and "360p". Use Utils.Card.videoURL(id, "mp4")
+      MP4: "https://videonme-basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/mp4/{4}/1.mp4",
+    },
   },
   APPTYPES: {
     DESKTOP: 1,
