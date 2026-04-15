@@ -7,7 +7,7 @@ module.exports = {
     MAIN_MENU:
       "https://static-basket-01.wbbasket.ru/vol0/data/main-menu-ru-ru-v3.json",
     BRAND: {
-      IMAGE: "https://images.wbstatic.net/brands/small/{}.jpg",
+      IMAGE: "https://static-basket-01.wbbasket.ru/vol0/brand-flow-logos/by-id/{0}.webp",
       CATALOG: "https://catalog.wb.ru/brands/v4/catalog",
     },
     SUPPLIER: {
@@ -21,12 +21,12 @@ module.exports = {
     },
     PROMOS: "https://www.wildberries.ru/webapi/settings/promo/get",
     PRODUCT: {
-      CONTENT: "https://wbx-content-v2.wbstatic.net/ru/{}.json",
+      CONTENT: "https://wbx-content-v2.wbstatic.net/ru/{0}.json",
       CARD: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/info/ru/card.json",
       SELLERS: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/info/sellers.json",
       EXTRADATA: "https://www.wildberries.ru/webapi/product/{}/data",
       DETAILS: "https://card.wb.ru/cards/v4/detail",
-      FEEDBACKS: "https://feedbacks{0}.wb.ru/feedbacks/v1/{1}",
+      FEEDBACKS: "https://feedbacks{0}.wb.ru/feedbacks/v2/{1}",      
       QUESTIONS: "https://questions.wildberries.ru/api/v1/questions",
       DELIVERYDATA: "https://card.wb.ru/cards/list",
     },

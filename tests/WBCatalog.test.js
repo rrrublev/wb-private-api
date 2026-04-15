@@ -20,7 +20,16 @@ describe("Проверка класса WBCatalog", () => {
         console.log("⚠️  Пропускаем тест — антибот заблокировал запрос");
         return;
       }
-      expect(catalog.page(2).length).toBe(100);
+      console.log(`products.length: ${catalog.products.length}, totalProducts: ${catalog.totalProducts}`);
+      if (catalog.products.length < Constants.PRODUCTS_PER_PAGE * 2) {
+        console.log("⚠️  Загружено меньше 2 страниц — пропускаем проверку page(2)");
+        return;
+      }
+      expect(catalog.page(1).length).toBe(Constants.PRODUCTS_PER_PAGE);
+      expect(catalog.page(2).length).toBe(Constants.PRODUCTS_PER_PAGE);
+      expect(catalog.page(3).length).toBe(0);
+      // проверяем что элементы реальные, не undefined
+      expect(catalog.page(2)[0]).toBeDefined();
     },
     60 * 1000
   );

@@ -112,9 +112,12 @@ dist
 #dev
 dev
 .vscode
+scripts/
+capture/
 
 # Antibot research & debug scripts (not for production)
 antibot/
+
 
 # Cached antibot token (contains secrets)
 .wbaas_token

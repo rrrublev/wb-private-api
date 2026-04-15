@@ -7,6 +7,7 @@ module.exports = {
       testMatch: [
         "**/tests/Constants.URLs.utils.test.js",
         "**/tests/SessionBuilder.test.js",
+        "**/tests/Utils.test.js",
       ],
     },
     {

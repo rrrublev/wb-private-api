@@ -437,7 +437,7 @@ describe("Тестирование URL из Constants.js", () => {
 
     test("URL с плейсхолдерами должны содержать правильные маркеры", () => {
       const urlsWithPlaceholders = [
-        { path: "BRAND.IMAGE", url: Constants.URLS.BRAND.IMAGE, placeholders: ["{}"] },
+        { path: "BRAND.IMAGE", url: Constants.URLS.BRAND.IMAGE, placeholders: ["{0}"] },
         { path: "SUPPLIER.INFO", url: Constants.URLS.SUPPLIER.INFO, placeholders: ["{0}"] },
         { path: "SUPPLIER.SHIPMENT", url: Constants.URLS.SUPPLIER.SHIPMENT, placeholders: ["{0}"] },
         { path: "PRODUCT.CARD", url: Constants.URLS.PRODUCT.CARD, placeholders: ["{0}", "{1}", "{2}", "{3}"] },

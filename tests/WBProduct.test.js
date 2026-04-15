@@ -7,24 +7,59 @@ const SessionBuilder = require("../src/SessionBuilder");
 const WBCatalog = require("../src/WBCatalog");
 
 let wbapi;
+let catalog;
+let product;
 
-beforeAll(() => {
+beforeAll(async () => {
   wbapi = new WBPrivateAPI({ destination: Constants.DESTINATIONS.MOSCOW });
   const token = process.env.WBAAS_TOKEN;
   if (token) SessionBuilder.setAntibotToken(wbapi.session, token);
-});
+
+  catalog = await wbapi.search("швабра zetter", 1);
+  product = catalog instanceof WBCatalog ? catalog.products[0] : null;
+
+  if (product) {
+    console.log(`Найдено товаров: ${catalog.products.length}`);
+    console.log(`Тестовый товар: ID ${product.id}, "${product.name}"`);
+  } else {
+    console.log("⚠️  Антибот заблокировал запрос при инициализации — все тесты будут пропущены");
+  }
+}, 30 * 1000);
 
 describe("Проверка класса WBProduct", () => {
-  test("Проверка метода .getStocks() на возврат данных об остатках товара на складах", async () => {
+  test("WBProduct.create() возвращает заполненный объект со всеми разделами данных", async () => {
+    if (!product) return;
     try {
-      const catalog = await wbapi.search("швабра zetter", 1);
-      if (!(catalog instanceof WBCatalog)) {
-        console.log("⚠️  Антибот заблокировал запрос, тест пропущен");
-        return;
+      const p = await WBProduct.create(product.id);
+
+      console.log("IMT ID:      " + p._rawResponse.imt_id);
+      console.log("Name:        " + p._rawResponse.details?.name);
+      console.log("Brand:       " + p._rawResponse.details?.brand);
+      console.log("Supplier ID: " + p._rawResponse.seller?.supplierId);
+      const priceBasic   = p._rawResponse.details?.sizes?.[0]?.price?.basic;
+      const priceProduct = p._rawResponse.details?.sizes?.[0]?.price?.product;
+      console.log("Price:       " + (priceBasic   != null ? (priceBasic   / 100).toFixed(2) + " ₽" : "—") + " (до скидки)");
+      console.log("Price:       " + (priceProduct != null ? (priceProduct / 100).toFixed(2) + " ₽" : "—") + " (со скидкой)");
+      console.log("Questions:   " + p.totalQuestions);
+
+      expect(p).toBeInstanceOf(WBProduct);
+      expect(p._rawResponse.imt_id).toBeTruthy();
+      expect(p._rawResponse.details?.name).toBeTruthy();
+      expect(p._rawResponse.seller?.supplierId).toBeTruthy();
+      expect(typeof p.totalQuestions).toBe("number");
+    } catch (error) {
+      if (error.response?.status === 404) {
+        console.log("⚠️  API временно недоступен (404), тест пропущен");
+        expect(error.response.status).toBe(404);
+      } else {
+        throw error;
       }
-      console.log("Найдено товаров в каталоге: " + catalog.products.length);
-      const product = catalog.products[0];
-      console.log("Тестовый товар: ID " + product.id + ", \"" + product.name + "\", поставщик " + product.supplierId);
+    }
+  }, 30 * 1000);
+
+  test("Проверка метода .getStocks() на возврат данных об остатках товара на складах", async () => {
+    if (!product) return;
+    try {
       await product.getStocks();
       console.log("totalQuantity: " + product.totalQuantity);
       expect(product.totalQuantity).toBeGreaterThanOrEqual(0);
@@ -41,16 +76,8 @@ describe("Проверка класса WBProduct", () => {
   test(
     "Проверка метода .getFeedbacks() на возврат всех отзывов",
     async () => {
+      if (!product) return;
       try {
-        const catalog = await wbapi.search("швабра zetter", 1);
-        if (!(catalog instanceof WBCatalog)) {
-          console.log("⚠️  Антибот заблокировал запрос, тест пропущен");
-          return;
-        }
-        console.log("Найдено товаров: " + catalog.products.length);
-        const product = catalog.products[0];
-        console.log("Тестовый товар: ID " + product.id + ", \"" + product.name + "\"");
-
         const wbProduct = new WBProduct(product);
         await wbProduct.getProductData();
         console.log("imt_id:", wbProduct._rawResponse.imt_id);
@@ -61,9 +88,7 @@ describe("Проверка класса WBProduct", () => {
         expect(Array.isArray(wbProduct.feedbacks)).toBeTruthy();
       } catch (error) {
         if (error.response?.status === 404) {
-          console.log(
-            "⚠️  API эндпоинт getFeedbacks временно недоступен (404)"
-          );
+          console.log("⚠️  API эндпоинт getFeedbacks временно недоступен (404)");
           expect(error.response.status).toBe(404);
         } else {
           throw error;
@@ -74,31 +99,60 @@ describe("Проверка класса WBProduct", () => {
   );
 
   test(
-    "Проверка метода .getQuestions() на возврат всех вопросов",
+    "Проверка метода .getQuestionsCount() на возврат количества вопросов",
     async () => {
+      if (!product) return;
       try {
-        const catalog = await wbapi.search("швабра zetter", 1);
-        if (!(catalog instanceof WBCatalog)) {
-          console.log("⚠️  Антибот заблокировал запрос, тест пропущен");
-          return;
-        }
-        console.log("Найдено товаров: " + catalog.products.length);
-        const product = catalog.products[0];
-        console.log("Тестовый товар: ID " + product.id + ", \"" + product.name + "\"");
-
         const wbProduct = new WBProduct(product);
         await wbProduct.getProductData();
-        console.log("imt_id:", wbProduct._rawResponse.imt_id);
-        await wbProduct.getQuestions();
-        console.log("questions.length: " + wbProduct.questions.length);
+        const count = await wbProduct.getQuestionsCount();
 
-        expect(typeof wbProduct.questions === "object").toBeTruthy();
-        expect(Array.isArray(wbProduct.questions)).toBeTruthy();
+        console.log("getQuestionsCount: " + count);
+        console.log("this.totalQuestions: " + wbProduct.totalQuestions);
+        console.log("в _rawResponse есть totalQuestions: " + ("totalQuestions" in wbProduct._rawResponse));
+
+        expect(typeof count).toBe("number");
+        expect(count).toBeGreaterThanOrEqual(0);
+        expect(wbProduct.totalQuestions).toBe(count);
+        expect("totalQuestions" in wbProduct._rawResponse).toBe(false);
       } catch (error) {
         if (error.response?.status === 404) {
-          console.log(
-            "⚠️  API эндпоинт getQuestions временно недоступен (404)"
-          );
+          console.log("⚠️  API эндпоинт getQuestionsCount временно недоступен (404)");
+          expect(error.response.status).toBe(404);
+        } else {
+          throw error;
+        }
+      }
+    },
+    30 * 1000
+  );
+
+  test(
+    "Проверка пагинации .getQuestions() — первая и последняя страница",
+    async () => {
+      if (!product) return;
+      try {
+        const wbProduct = new WBProduct(product);
+        await wbProduct.getProductData();
+
+        const total = await wbProduct.getQuestionsCount();
+        const totalPages = Math.ceil(total / Constants.QUESTIONS_PER_PAGE);
+        console.log(`totalQuestions: ${total}, totalPages: ${totalPages}`);
+
+        const firstPage = await wbProduct._fetchQuestionsPage(1);
+        const expectedFirst = Math.min(total, Constants.QUESTIONS_PER_PAGE);
+        console.log(`  стр. 1: получено ${firstPage.length} (ожидалось ${expectedFirst})`);
+        expect(firstPage.length).toBe(expectedFirst);
+
+        if (totalPages > 1) {
+          const lastPage = await wbProduct._fetchQuestionsPage(totalPages);
+          const expectedLast = total - (totalPages - 1) * Constants.QUESTIONS_PER_PAGE;
+          console.log(`  стр. ${totalPages}: получено ${lastPage.length} (ожидалось ${expectedLast})`);
+          expect(lastPage.length).toBe(expectedLast);
+        }
+      } catch (error) {
+        if (error.response?.status === 404) {
+          console.log("⚠️  API эндпоинт getQuestions временно недоступен (404)");
           expect(error.response.status).toBe(404);
         } else {
           throw error;

@@ -11,22 +11,15 @@ class WBCatalog {
   }
 
   /**
-   * It takes a page number and returns an array of products that should be
-   * displayed on that page.
-   * @param {number} number - the page number
-   * @returns {array} - An array of WBProduct's.
+   * It takes a page number and returns a slice of plain product objects
+   * for that page.
+   * @param {number} number - the page number (1-based)
+   * @returns {array} - A slice of plain product objects from the catalog.
    */
   page(number) {
-    const startIndex = (number - 1) * 100;
-    let endIndex = startIndex + Constants.PRODUCTS_PER_PAGE - 1;
-    if (startIndex > this.totalProducts) return [];
-    if (endIndex >= this.totalProducts) endIndex = this.totalProducts - 1;
-
-    const outputProducts = [];
-    for (let idx = startIndex; idx <= endIndex; idx += 1) {
-      outputProducts.push(this.products[idx]);
-    }
-    return outputProducts;
+    const startIndex = (number - 1) * Constants.PRODUCTS_PER_PAGE;
+    if (startIndex >= this.products.length) return [];
+    return this.products.slice(startIndex, startIndex + Constants.PRODUCTS_PER_PAGE);
   }
 
   /**
@@ -36,8 +29,7 @@ class WBCatalog {
    * @returns {number} - The position of the product in the array.
    */
   getPosition(productId) {
-    const position = this.products.findIndex((item) => item.id === productId);
-    return position;
+    return this.products.findIndex((item) => item.id === productId);
   }
 }
 

@@ -8,6 +8,23 @@ const { getBasketNumber, videoURL } = require("./Utils").Card;
 
 format.extend(String.prototype, {});
 
+function numToUint8Array(r) {
+  const t = new Uint8Array(8);
+  for (let n = 0; n < 8; n++) (t[n] = r % 256), (r = Math.floor(r / 256));
+  return t;
+}
+
+function crc16Arc(r) {
+  const t = numToUint8Array(r);
+  let n = 0;
+  for (let i = 0; i < t.length; i++) {
+    n ^= t[i];
+    for (let j = 0; j < 8; j++)
+      (1 & n) > 0 ? (n = (n >> 1) ^ 40961) : (n >>= 1);
+  }
+  return n;
+}
+
 class WBProduct {
   stocks = [];
   promo = {};
@@ -31,14 +48,7 @@ class WBProduct {
       instance.getSellerData(),
     ]);
     await instance.getQuestionsCount();
-
-    return new WBProduct(
-      Object.assign(instance._rawResponse, { id: productId })
-    );
-
-    // Создаем новый экземпляр с данными из нового API
-    // const productData = instance._rawResponse.details;
-    // return new WBProduct(productData);
+    return instance;
   }
 
   /**
@@ -46,7 +56,7 @@ class WBProduct {
    * @returns The afterSale price.
    */
   get currentPrice() {
-    return this.price.afterSale;
+    return this._rawResponse.details?.sizes?.[0]?.price?.product;
   }
 
   /**
@@ -55,45 +65,29 @@ class WBProduct {
    * @returns The total number of stocks.
    */
   get totalStocks() {
-    return this._rawResponse.details.sizes[0].stocks.reduce(
+    return (this._rawResponse.details?.sizes?.[0]?.stocks || []).reduce(
       (sum, x) => sum + x.qty,
       0
     );
   }
 
-  /**
-   * It makes a request to the server and gets the product data
-   */
-  async getProductData() {
-    const limits = [0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8];
-
-    const sku = String(this.id);
-
-    const basket = getBasketNumber(sku);
-    const vol = sku.length > 5 ? sku.substring(0, limits[sku.length]) : 0;
-    const part = sku.substring(0, limits[sku.length + 2]);
-    const URL = Constants.URLS.PRODUCT.CARD;
-    const res = await this.session.get(URL.format(basket, vol, part, sku));
-    const rawData = res.data;
-    Object.assign(this._rawResponse, rawData);
+  _cardUrl(urlTemplate) {
+    const basket = getBasketNumber(this.id);
+    const vol    = Math.floor(this.id / 100000);
+    const part   = Math.floor(this.id / 1000);
+    return urlTemplate.format(basket, vol, part, this.id);
   }
 
-  /**
-   * It makes a request to the server and gets the seller data
-   */
-  async getSellerData() {
-    const limits = [0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8];
+  async getProductData() {
+    const res = await this.session.get(this._cardUrl(Constants.URLS.PRODUCT.CARD));
+    Object.assign(this._rawResponse, res.data);
+  }
 
-    const sku = String(this.id);
-    const basket = getBasketNumber(sku);
-    const vol = sku.length > 5 ? sku.substring(0, limits[sku.length]) : 0;
-    const part = sku.substring(0, limits[sku.length + 2]);
-    const URL = Constants.URLS.PRODUCT.SELLERS;
-    const res = await this.session.get(URL.format(basket, vol, part, sku));
-    const rawData = res.data;
+  async getSellerData() {
+    const res = await this.session.get(this._cardUrl(Constants.URLS.PRODUCT.SELLERS));
     Object.assign(this._rawResponse, {
-      seller: rawData,
-      supplier_id: rawData.supplierId,
+      seller: res.data,
+      supplier_id: res.data.supplierId,
     });
   }
 
@@ -135,8 +129,8 @@ class WBProduct {
    * @returns {object} - the product.promo object.
    */
   async getPromo() {
-    if ("id" in this._rawResponse === false) {
-      await this.getProductData(this);
+    if (!this._rawResponse.imt_id) {
+      await this.getProductData();
     }
 
     if ("panelPromoId" in this.promo) {
@@ -166,41 +160,16 @@ class WBProduct {
    * @returns An array of WBFeedback objects
    */
   async getFeedbacks() {
-    const numToUint8Array = function (r) {
-      const t = new Uint8Array(8);
-      for (let n = 0; n < 8; n++) (t[n] = r % 256), (r = Math.floor(r / 256));
-      return t;
-    };
-
-    const crc16Arc = function (r) {
-      const t = numToUint8Array(r);
-      let n = 0;
-      for (let r = 0; r < t.length; r++) {
-        n ^= t[r];
-        for (let r = 0; r < 8; r++)
-          (1 & n) > 0 ? (n = (n >> 1) ^ 40961) : (n >>= 1);
-      }
-      return n;
-    };
-
-    let newFeedbacks = [];
-
     const imt_id = this.imt_id ?? this._rawResponse.imt_id;
     if (!imt_id) {
       this.feedbacks = [];
       return [];
     }
     const partition_id = crc16Arc(imt_id) % 100 >= 50 ? "2" : "1";
-    const url = Constants.URLS.PRODUCT.FEEDBACKS.format(
-      partition_id,
-      imt_id
-    );
-
+    const url = Constants.URLS.PRODUCT.FEEDBACKS.format(partition_id, imt_id);
     const res = await this.session.get(url);
-
-    newFeedbacks = (res.data.feedbacks || []).map((fb) => new WBFeedback(fb));
-    this.feedbacks = newFeedbacks;
-    return newFeedbacks;
+    this.feedbacks = (res.data.feedbacks || []).map((fb) => new WBFeedback(fb));
+    return this.feedbacks;
   }
 
   /**
@@ -208,64 +177,37 @@ class WBProduct {
    * @returns The total number of questions for the product.
    */
   async getQuestionsCount() {
-    const options = {
-      params: {
-        imtId: this._rawResponse.imt_id,
-        onlyCount: true,
-      },
-    };
-    const url = Constants.URLS.PRODUCT.QUESTIONS;
-    const res = await this.session.get(url, options);
+    const res = await this.session.get(Constants.URLS.PRODUCT.QUESTIONS, {
+      params: { imtId: this._rawResponse.imt_id, onlyCount: true },
+    });
     this.totalQuestions = res.data.count;
-    Object.assign(this._rawResponse, { totalQuestions: res.data.count });
     return this.totalQuestions;
   }
 
-  /**
-   * It gets all questions
-   * @param [page=0] - The page number of the questions to get.
-   * @returns An array of WBQuestion objects
-   */
-  async getQuestions(page = 0) {
-    let newQuestions = [];
-    let totalQuestions = 0;
-    if (page === 0) {
-      if ("totalQuestions" in this) {
-        totalQuestions = this.totalQuestions;
-      } else {
-        totalQuestions = await this.getQuestionsCount();
-        this.totalQuestions = totalQuestions;
-      }
-      const totalPages = Math.round(
-        totalQuestions / Constants.QUESTIONS_PER_PAGE + 0.5
-      );
-
-      const threads = Array(totalPages)
-        .fill(1)
-        .map((x, y) => x + y);
-      const parsedPages = await Promise.all(
-        threads.map((thr) => this.getQuestions(thr))
-      );
-      parsedPages.map((val) => newQuestions.push(...val));
-    } else {
-      const skip = (page - 1) * Constants.QUESTIONS_PER_PAGE;
-      const imt_id = this.imt_id ?? this._rawResponse.imt_id;
-      const options = {
-        params: {
-          imtId: imt_id,
-          skip,
-          take: Constants.QUESTIONS_PER_PAGE,
-        },
-      };
-
-      const url = Constants.URLS.PRODUCT.QUESTIONS;
-      const res = await this.session.get(url, options);
-      newQuestions = res.data.questions.map(
-        (question) => new WBQuestion(question)
-      );
+  async getQuestions() {
+    if (!("totalQuestions" in this)) {
+      await this.getQuestionsCount();
     }
-    this.questions = newQuestions;
-    return newQuestions;
+    const totalPages = Math.ceil(this.totalQuestions / Constants.QUESTIONS_PER_PAGE);
+    console.log(`getQuestions: ${this.totalQuestions} вопросов, ${totalPages} стр.`);
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+    const results = await Promise.all(pages.map((p) => this._fetchQuestionsPage(p)));
+    this.questions = results.flat();
+    return this.questions;
+  }
+
+  async _fetchQuestionsPage(page) {
+    const imt_id = this.imt_id ?? this._rawResponse.imt_id;
+    const res = await this.session.get(Constants.URLS.PRODUCT.QUESTIONS, {
+      params: {
+        imtId: imt_id,
+        skip: (page - 1) * Constants.QUESTIONS_PER_PAGE,
+        take: Constants.QUESTIONS_PER_PAGE,
+      },
+    });
+    const questions = res.data.questions.map((q) => new WBQuestion(q));
+    console.log(`  стр. ${page}: получено ${questions.length}`);
+    return questions;
   }
   /**
    * Returns video info for the product.
