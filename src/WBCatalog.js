@@ -17,6 +17,7 @@ class WBCatalog {
    * @returns {array} - A slice of plain product objects from the catalog.
    */
   page(number) {
+    if (!Number.isInteger(number) || number < 1) return [];
     const startIndex = (number - 1) * Constants.PRODUCTS_PER_PAGE;
     if (startIndex >= this.products.length) return [];
     return this.products.slice(startIndex, startIndex + Constants.PRODUCTS_PER_PAGE);

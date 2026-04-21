@@ -2,9 +2,28 @@ const { fetch, Agent } = require("undici");
 const { stringify } = require("qs");
 const Constants = require("./Constants");
 
+const noopLogger = {
+  debug() {},
+  info() {},
+  warn() {},
+  error() {},
+};
+
+function createHttpError(status, url, method) {
+  const err = new Error(`Request failed with status code ${status}`);
+  err.response = { status };
+  err.config = { url, method };
+  return err;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 class Session {
   constructor(config) {
     this._config = config;
+    this._logger = config.logger || noopLogger;
     this._agent = new Agent({
       keepAliveTimeout: 30000,
       keepAliveMaxTimeout: 30000,
@@ -16,9 +35,8 @@ class Session {
   }
 
   async get(url, options = {}) {
-    const { params = {}, headers = {}, retryOptions } = options;
+    const { params = {}, headers = {}, retryOptions, responseType = "auto" } = options;
 
-    // Сериализация params
     const queryString = Object.keys(params).length
       ? "?" + stringify(params, { arrayFormat: "comma", encode: false })
       : "";
@@ -31,16 +49,16 @@ class Session {
     };
 
     const retries = retryOptions?.retries ?? this._config.retries;
-    const retryCondition = retryOptions?.retryCondition ?? ((status) =>
-      status === 429 || status >= 500
-    );
+    const retryCondition =
+      retryOptions?.retryCondition ??
+      ((ctx) => ctx.status === 429 || ctx.status >= 500 || Boolean(ctx.error));
 
     let lastError;
     for (let attempt = 0; attempt <= retries; attempt++) {
       if (attempt > 0) {
         const delay = Math.min(Math.pow(2, attempt) * 1000 + Math.random() * 1000, 10000);
-        console.log(`Retry attempt ${attempt} for ${url}`);
-        await new Promise((r) => setTimeout(r, delay));
+        this._logger.debug("Retry attempt", { attempt, url });
+        await sleep(delay);
       }
 
       const startTime = Date.now();
@@ -52,54 +70,60 @@ class Session {
           dispatcher: this._agent,
           signal: AbortSignal.timeout(this._config.timeout),
         });
-      } catch (err) {
-        lastError = err;
+      } catch (error) {
+        lastError = error;
+        const shouldRetry =
+          attempt < retries &&
+          retryCondition({ status: null, error, attempt, url, method: "get" });
+        if (!shouldRetry) {
+          error.config = { url, method: "get" };
+          throw error;
+        }
         continue;
       }
 
       const duration = Date.now() - startTime;
       if (duration > 5000) {
-        console.warn(`Slow request detected: ${url} took ${duration}ms`);
+        this._logger.warn("Slow request detected", { url, duration });
       }
 
       if (response.status >= 200 && response.status < 300) {
-        const contentType = response.headers.get("content-type") || "";
         let data;
-        if (contentType.includes("application/json")) {
+        if (responseType === "text") {
+          data = await response.text();
+        } else if (responseType === "json") {
           data = await response.json();
         } else {
-          const text = await response.text();
-          const trimmed = text.trimStart();
-          if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-            try { data = JSON.parse(text); } catch { data = text; }
+          const contentType = response.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) {
+            data = await response.json();
           } else {
-            data = text;
+            const text = await response.text();
+            const trimmed = text.trimStart();
+            if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+              try { data = JSON.parse(text); } catch { data = text; }
+            } else {
+              data = text;
+            }
           }
         }
         return { status: response.status, data };
       }
 
-      // Retry условие
-      if (attempt < retries && retryCondition(response.status)) {
-        lastError = new Error(`Request failed with status code ${response.status}`);
-        lastError.response = { status: response.status };
+      const shouldRetry =
+        attempt < retries &&
+        retryCondition({ status: response.status, error: null, attempt, url, method: "get" });
+
+      if (shouldRetry) {
+        lastError = createHttpError(response.status, url, "get");
         continue;
       }
 
-      // Финальная ошибка
-      const err = new Error(`Request failed with status code ${response.status}`);
-      err.response = { status: response.status };
-      err.config = { url, method: "get" };
-      console.error(`Request failed after ${Date.now() - startTime}ms:`, {
-        url,
-        method: "get",
-        status: response.status,
-        message: err.message,
-      });
+      const err = createHttpError(response.status, url, "get");
+      this._logger.error("Request failed", { url, status: response.status });
       throw err;
     }
 
-    // Все попытки исчерпаны
     if (lastError) {
       lastError.config = { url, method: "get" };
       throw lastError;
@@ -108,19 +132,12 @@ class Session {
 }
 
 class SessionBuilder {
-  /**
-   * Creates a new Session instance backed by undici fetch.
-   * @param {Object} options - Configuration options
-   * @param {number} options.timeout - Request timeout in milliseconds (default: 30000)
-   * @param {number} options.retries - Number of retry attempts (default: 3)
-   * @param {number} options.maxSockets - Maximum number of connections per host (default: 10)
-   * @returns {Session} Configured session instance
-   */
   static create(options = {}) {
     const config = {
       timeout: options.timeout || 30000,
-      retries: options.retries || 3,
+      retries: options.retries ?? 3,
       maxSockets: options.maxSockets || 10,
+      logger: options.logger || noopLogger,
       headers: {
         "User-Agent": options.userAgent || Constants.USERAGENT,
         "Accept-Encoding": "gzip, deflate, br",
@@ -131,7 +148,6 @@ class SessionBuilder {
         "Cache-Control": "no-cache",
       },
     };
-
     return new Session(config);
   }
 

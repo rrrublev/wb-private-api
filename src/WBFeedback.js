@@ -14,10 +14,12 @@ class WBFeedback {
    * @returns An array of the photos with the size specified.
    */
   getPhotos(size = "min") {
-    size += "SizeUri";
-    return this.photos.map(
-      (photo) => Constants.URLS.IMAGES.FEEDBACK_BASE + photo[size]
-    );
+    const field = `${size}SizeUri`;
+    const photos = Array.isArray(this.photos) ? this.photos : [];
+    return photos
+      .map((photo) => photo?.[field])
+      .filter(Boolean)
+      .map((p) => Constants.URLS.IMAGES.FEEDBACK_BASE + p);
   }
 }
 

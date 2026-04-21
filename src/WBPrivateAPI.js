@@ -18,7 +18,22 @@ function _readTokenFile() {
   return null;
 }
 
-format.extend(String.prototype, {});
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const i = nextIndex++;
+      results[i] = await mapper(items[i], i);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => worker())
+  );
+  return results;
+}
 
 class WBPrivateAPI {
   /* Creating a new instance of the class WBPrivateAPI. */
@@ -51,7 +66,16 @@ class WBPrivateAPI {
     const products = [];
 
     const totalProducts = await this.searchTotalProducts(keyword);
-    if (totalProducts === 0) return [];
+    if (totalProducts === 0) {
+      return new WBCatalog({
+        keyword,
+        catalog_type: null,
+        catalog_value: null,
+        pages: 0,
+        products: [],
+        totalProducts: 0,
+      });
+    }
 
     const { catalog_type, catalog_value } = await this.getQueryMetadata(
       keyword,
@@ -69,13 +93,16 @@ class WBPrivateAPI {
     }
 
     const threads = Array.from({ length: totalPages }, (_, i) => i + 1);
-    const parsedPages = await Promise.all(
-      threads.map((thr) => this.getCatalogPage(catalogConfig, thr, retries, filters))
+    const parsedPages = await mapWithConcurrency(
+      threads,
+      5,
+      (thr) => this.getCatalogPage(catalogConfig, thr, retries, filters)
     );
 
+    const productOptions = { session: this.session, destination: this.destination };
     for (const page of parsedPages) {
       if (Array.isArray(page)) {
-        products.push(...page.map((v) => new WBProduct(v)));
+        products.push(...page.map((v) => new WBProduct(v, productOptions)));
       }
     }
 
@@ -124,12 +151,7 @@ class WBPrivateAPI {
       headers: {
         "x-queryid": Utils.Search.getQueryIdForSearch(),
       },
-      retryOptions: {
-        retries,
-        retryCondition: (error) => {
-          return error.response.status === 429 || error.response.status >= 500;
-        },
-      },
+      retryOptions: { retries },
     });
 
     if (
@@ -250,16 +272,8 @@ class WBPrivateAPI {
     for (const filter of filters) {
       options.params[filter.type] = filter.value;
     }
-    options.retryOptions = {
-      retries,
-      retryCondition: (error) => {
-        return error.response.status === 429 || error.response.status >= 500;
-      },
-    };
+    options.retryOptions = { retries };
     const res = await this.session.get(this._searchUrl, options);
-    if (res.status === 429 || res.status === 500) {
-      throw new Error("BAD STATUS");
-    }
     if (res.data?.metadata?.catalog_value === "preset=11111111") {
       throw new Error("BAD CATALOG VALUE - 11111111");
     }
@@ -370,7 +384,7 @@ class WBPrivateAPI {
    */
   async getSupplierInfo(sellerId) {
     const res = await this.session.get(
-      Constants.URLS.SUPPLIER.INFO.format(sellerId)
+      format(Constants.URLS.SUPPLIER.INFO, sellerId)
     );
     return res.data || {};
   }
@@ -380,7 +394,7 @@ class WBPrivateAPI {
    */
   async getSupplierShipment(sellerId) {
     const res = await this.session.get(
-      Constants.URLS.SUPPLIER.SHIPMENT.format(sellerId),
+      format(Constants.URLS.SUPPLIER.SHIPMENT, sellerId),
       {
         headers: {
           "x-client-name": "site",
@@ -447,13 +461,16 @@ class WBPrivateAPI {
     }
 
     const threads = Array.from({ length: totalPages }, (_, i) => i + 1);
-    const parsedPages = await Promise.all(
-      threads.map((thr) => this.getSupplierCatalogPage(supplierId, thr, retries))
+    const parsedPages = await mapWithConcurrency(
+      threads,
+      5,
+      (thr) => this.getSupplierCatalogPage(supplierId, thr, retries)
     );
 
+    const productOptions = { session: this.session, destination: this.destination };
     for (const page of parsedPages) {
       if (Array.isArray(page)) {
-        products.push(...page.map((v) => new WBProduct(v)));
+        products.push(...page.map((v) => new WBProduct(v, productOptions)));
       }
     }
 
@@ -485,16 +502,8 @@ class WBPrivateAPI {
         spp: "30",
         supplier: supplierId,
       },
-      retryOptions: {
-        retries,
-        retryCondition: (error) => {
-          return error.response.status === 429 || error.response.status >= 500;
-        },
-      },
+      retryOptions: { retries },
     });
-    if (res.status === 429 || res.status === 500) {
-      throw new Error("BAD STATUS");
-    }
     return res.data.data?.products ?? res.data.products ?? [];
   }
 

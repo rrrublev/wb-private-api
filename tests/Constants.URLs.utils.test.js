@@ -175,7 +175,7 @@ describe("Утилиты для работы с URL из Constants", () => {
         ).replace("{1}", imtId);
 
         expect(url).toContain(`feedbacks${partition_id}.wb.ru`);
-        expect(url).toContain(`feedbacks/v1/${imtId}`);
+        expect(url).toContain(`feedbacks/v2/${imtId}`);
 
         console.log(`✅ Отзывы для IMT ${imtId}: партиция ${partition_id}`);
         console.log(`   URL: ${url}`);

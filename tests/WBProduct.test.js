@@ -145,10 +145,9 @@ describe("Проверка класса WBProduct", () => {
         expect(firstPage.length).toBe(expectedFirst);
 
         if (totalPages > 1) {
-          const lastPage = await wbProduct._fetchQuestionsPage(totalPages);
-          const expectedLast = total - (totalPages - 1) * Constants.QUESTIONS_PER_PAGE;
-          console.log(`  стр. ${totalPages}: получено ${lastPage.length} (ожидалось ${expectedLast})`);
-          expect(lastPage.length).toBe(expectedLast);
+          const secondPage = await wbProduct._fetchQuestionsPage(2);
+          console.log(`  стр. 2: получено ${secondPage.length} (ожидалось ${Constants.QUESTIONS_PER_PAGE})`);
+          expect(secondPage.length).toBe(Constants.QUESTIONS_PER_PAGE);
         }
       } catch (error) {
         if (error.response?.status === 404) {

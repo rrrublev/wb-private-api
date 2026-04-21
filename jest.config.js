@@ -8,6 +8,9 @@ module.exports = {
         "**/tests/Constants.URLs.utils.test.js",
         "**/tests/SessionBuilder.test.js",
         "**/tests/Utils.test.js",
+        "**/tests/WBPrivateAPI.unit.test.js",
+        "**/tests/WBCatalog.unit.test.js",
+        "**/tests/WBProduct.unit.test.js",
       ],
     },
     {

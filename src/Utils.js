@@ -1,9 +1,6 @@
 /* eslint-disable no-nested-ternary */
 const format = require("string-format");
 const Constants = require("./Constants");
-const moment = require("moment");
-
-format.extend(String.prototype, {});
 
 // vol = Math.floor(nm_id / 100000); basket number = index + 1 (zero-padded).
 // Source: WB JS volHostV2() in product_dist JS (staticbasket_route_map).
@@ -89,7 +86,7 @@ const imageURL = (productId, imageType = "SMALL", order = 1) => {
   const random = Date.now();
   const URL = Constants.URLS.IMAGES[imageType];
 
-  return `${URL.format(basket, vol, part, productId, order)}?r=${random}`;
+  return `${format(URL, basket, vol, part, productId, order)}?r=${random}`;
 };
 
 /**
@@ -97,32 +94,46 @@ const imageURL = (productId, imageType = "SMALL", order = 1) => {
  * Mirrors WB's own urlVideoProduct() from their frontend JS.
  *
  * @param {number|string} productId - nm_id of the product
- * @param {"hls"|"mp4"} [format]   - "hls" → m3u8 playlist, "mp4" → preview file (360p)
+ * @param {"hls"|"mp4"} [videoFormat]   - "hls" → m3u8 playlist, "mp4" → preview file (360p)
  * @param {string} [quality]       - HLS quality; WB always uses "1440p". MP4 preview is always "360p"
  * @returns {string} full video URL
  */
-const videoURL = (productId, format = "hls", quality = "1440p") => {
+const videoURL = (productId, videoFormat = "hls", quality = "1440p") => {
   const id = parseInt(productId, 10);
   const vol = id % 144;
   const part = Math.floor(id / 10000);
   const basket = getVideoBasket(vol);
-  if (format === "mp4") {
-    return Constants.URLS.VIDEO.MP4.format(basket, vol, part, id, quality);
+  if (videoFormat === "mp4") {
+    return format(Constants.URLS.VIDEO.MP4, basket, vol, part, id, quality);
   }
-  return Constants.URLS.VIDEO.HLS.format(basket, vol, part, id, quality);
+  return format(Constants.URLS.VIDEO.HLS, basket, vol, part, id, quality);
 };
 
-const brandImageURL = (brandId) => Constants.URLS.BRAND.IMAGE.format(brandId);
+const brandImageURL = (brandId) => format(Constants.URLS.BRAND.IMAGE, brandId);
 
 const genNewUserID = function () {
-  var t = Math.floor(new Date().getTime() / 1e3),
-    e = Math.floor(Math.random() * Math.pow(2, 30)).toString() + t.toString(),
-    n = new Date();
+  const t = Math.floor(new Date().getTime() / 1e3);
+  const e = Math.floor(Math.random() * Math.pow(2, 30)).toString() + t.toString();
   return e;
 };
 
+function pad(value) {
+  return String(value).padStart(2, "0");
+}
+
+function formatDateForQueryId(date = new Date()) {
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join("");
+}
+
 const getQueryIdForSearch = function () {
-  return `qid${genNewUserID()}${moment(new Date()).format("yyyyMMDDHHmmss")}`;
+  return `qid${genNewUserID()}${formatDateForQueryId()}`;
 };
 
 const Utils = {

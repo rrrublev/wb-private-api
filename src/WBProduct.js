@@ -6,8 +6,6 @@ const WBFeedback = require("./WBFeedback");
 const WBQuestion = require("./WBQuestion");
 const { getBasketNumber, videoURL } = require("./Utils").Card;
 
-format.extend(String.prototype, {});
-
 function numToUint8Array(r) {
   const t = new Uint8Array(8);
   for (let n = 0; n < 8; n++) (t[n] = r % 256), (r = Math.floor(r / 256));
@@ -25,14 +23,16 @@ function crc16Arc(r) {
   return n;
 }
 
+
 class WBProduct {
   stocks = [];
   promo = {};
   feedbacks = [];
   _rawResponse = {};
 
-  constructor(product) {
-    this.session = SessionBuilder.create();
+  constructor(product, { session, destination } = {}) {
+    this.session = session || SessionBuilder.create();
+    this.destination = destination || Constants.DESTINATIONS.MOSCOW;
     if (typeof product !== "number") {
       Object.assign(this, product);
     } else {
@@ -40,8 +40,8 @@ class WBProduct {
     }
   }
 
-  static async create(productId) {
-    const instance = new WBProduct(productId);
+  static async create(productId, options = {}) {
+    const instance = new WBProduct(productId, options);
     await Promise.all([
       instance.getProductData(),
       instance.getDetailsData(),
@@ -75,7 +75,7 @@ class WBProduct {
     const basket = getBasketNumber(this.id);
     const vol    = Math.floor(this.id / 100000);
     const part   = Math.floor(this.id / 1000);
-    return urlTemplate.format(basket, vol, part, this.id);
+    return format(urlTemplate, basket, vol, part, this.id);
   }
 
   async getProductData() {
@@ -96,7 +96,7 @@ class WBProduct {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
-        dest: Constants.DESTINATIONS.MOSCOW.ids[0],
+        dest: this.destination.ids[0],
         spp: "30",
         lang: Constants.LOCALES.RU,
         nm: this.id,
@@ -104,7 +104,7 @@ class WBProduct {
     };
 
     const res = await this.session.get(Constants.URLS.PRODUCT.DETAILS, options);
-    const rawData = res.data.products[0];
+    const rawData = res.data?.products?.[0] ?? null;
     Object.assign(this._rawResponse, { details: rawData });
   }
 
@@ -166,7 +166,7 @@ class WBProduct {
       return [];
     }
     const partition_id = crc16Arc(imt_id) % 100 >= 50 ? "2" : "1";
-    const url = Constants.URLS.PRODUCT.FEEDBACKS.format(partition_id, imt_id);
+    const url = format(Constants.URLS.PRODUCT.FEEDBACKS, partition_id, imt_id);
     const res = await this.session.get(url);
     this.feedbacks = (res.data.feedbacks || []).map((fb) => new WBFeedback(fb));
     return this.feedbacks;
@@ -177,23 +177,47 @@ class WBProduct {
    * @returns The total number of questions for the product.
    */
   async getQuestionsCount() {
+    const imtId = this.imt_id ?? this._rawResponse.imt_id;
+    if (!imtId) {
+      this.totalQuestions = 0;
+      return 0;
+    }
     const res = await this.session.get(Constants.URLS.PRODUCT.QUESTIONS, {
-      params: { imtId: this._rawResponse.imt_id, onlyCount: true },
+      params: { imtId, onlyCount: true },
     });
-    this.totalQuestions = res.data.count;
+    this.totalQuestions = res.data?.count ?? 0;
     return this.totalQuestions;
   }
 
+  /**
+   * Fetches all available questions for the product.
+   *
+   * The WB API hard-limits questions to ~510 records (skip < 510).
+   * When `totalQuestions` exceeds this limit the result is truncated.
+   * Check `result.truncated` to detect partial data.
+   *
+   * @returns {{ items: WBQuestion[], totalQuestions: number, fetchedQuestions: number, truncated: boolean }}
+   */
   async getQuestions() {
     if (!("totalQuestions" in this)) {
       await this.getQuestionsCount();
     }
     const totalPages = Math.ceil(this.totalQuestions / Constants.QUESTIONS_PER_PAGE);
-    console.log(`getQuestions: ${this.totalQuestions} вопросов, ${totalPages} стр.`);
-    const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
-    const results = await Promise.all(pages.map((p) => this._fetchQuestionsPage(p)));
-    this.questions = results.flat();
-    return this.questions;
+    const allQuestions = [];
+    for (let page = 1; page <= totalPages; page++) {
+      const pageQuestions = await this._fetchQuestionsPage(page);
+      if (pageQuestions.length === 0) break;
+      allQuestions.push(...pageQuestions);
+    }
+    const result = {
+      items: allQuestions,
+      totalQuestions: this.totalQuestions,
+      fetchedQuestions: allQuestions.length,
+      truncated: allQuestions.length < this.totalQuestions,
+    };
+    this.questions = result.items;
+    this.questionsMeta = result;
+    return result;
   }
 
   async _fetchQuestionsPage(page) {
@@ -205,10 +229,9 @@ class WBProduct {
         take: Constants.QUESTIONS_PER_PAGE,
       },
     });
-    const questions = res.data.questions.map((q) => new WBQuestion(q));
-    console.log(`  стр. ${page}: получено ${questions.length}`);
-    return questions;
+    return res.data.questions.map((q) => new WBQuestion(q));
   }
+
   /**
    * Returns video info for the product.
    *

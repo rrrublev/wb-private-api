@@ -1,6 +1,6 @@
 {
   "name": "@rrrublev/wb-private-api",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Wildberries Private API",
   "main": "index.js",
   "scripts": {
@@ -27,7 +27,6 @@
   },
   "homepage": "https://github.com/rrrublev/wb-private-api#readme",
   "dependencies": {
-    "moment": "^2.30.1",
     "qs": "^6.15.1",
     "string-format": "^2.0.0",
     "undici": "^8.0.2"
