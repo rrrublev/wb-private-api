@@ -114,6 +114,7 @@ dev
 .vscode
 scripts/
 capture/
+tg/
 
 # Antibot research & debug scripts (not for production)
 antibot/

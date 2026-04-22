@@ -27,6 +27,7 @@
   },
   "homepage": "https://github.com/rrrublev/wb-private-api#readme",
   "dependencies": {
+    "impit": "^0.13.1",
     "qs": "^6.15.1",
     "string-format": "^2.0.0",
     "undici": "^8.0.2"
