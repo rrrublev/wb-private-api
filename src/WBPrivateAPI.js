@@ -1,22 +1,10 @@
 /* eslint-disable camelcase */
-const fs = require("fs");
-const path = require("path");
 const format = require("string-format");
 const Constants = require("./Constants");
 const WBProduct = require("./WBProduct");
 const Utils = require("./Utils");
 const WBCatalog = require("./WBCatalog");
 const SessionBuilder = require("./SessionBuilder");
-
-const TOKEN_FILE = path.resolve(__dirname, "../.wbaas_token");
-
-function _readTokenFile() {
-  try {
-    const data = JSON.parse(fs.readFileSync(TOKEN_FILE, "utf8"));
-    if (data.token && data.expires_at > Date.now()) return data.token;
-  } catch {}
-  return null;
-}
 
 async function mapWithConcurrency(items, limit, mapper) {
   const results = new Array(items.length);
@@ -40,7 +28,7 @@ class WBPrivateAPI {
   constructor({ destination, wbaasToken }) {
     this.session = SessionBuilder.create();
     this.destination = destination;
-    const token = wbaasToken || _readTokenFile();
+    const token = wbaasToken || SessionBuilder.readToken();
     if (token) {
       SessionBuilder.setAntibotToken(this.session, token);
     }
@@ -146,7 +134,7 @@ class WBPrivateAPI {
       params.limit = limit;
     }
 
-    const res = await this.session.get(this._searchUrl, {
+    const res = await this.session.get(Constants.URLS.SEARCH.EXACTMATCH, {
       params,
       headers: {
         "x-queryid": Utils.Search.getQueryIdForSearch(),
@@ -178,7 +166,7 @@ class WBPrivateAPI {
    * @returns Total number of products
    */
   async searchTotalProducts(keyword) {
-    const res = await this.session.get(this._searchTotalProductsUrl, {
+    const res = await this.session.get(Constants.URLS.SEARCH.TOTALPRODUCTS, {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         query: keyword,
@@ -202,7 +190,7 @@ class WBPrivateAPI {
    * @returns {number} Total number of products
    */
   async SupplierTotalProducts(supplierId) {
-    const res = await this.session.get(this._supplierTotalProductsUrl, {
+    const res = await this.session.get(Constants.URLS.SUPPLIER.TOTALPRODUCTS, {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
@@ -223,7 +211,7 @@ class WBPrivateAPI {
    * @returns Total number of products
    */
   async searchCustomFilters(keyword, filters) {
-    const res = await this.session.get(this._searchUrl, {
+    const res = await this.session.get(Constants.URLS.SEARCH.EXACTMATCH, {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
@@ -273,7 +261,7 @@ class WBPrivateAPI {
       options.params[filter.type] = filter.value;
     }
     options.retryOptions = { retries };
-    const res = await this.session.get(this._searchUrl, options);
+    const res = await this.session.get(Constants.URLS.SEARCH.EXACTMATCH, options);
     if (res.data?.metadata?.catalog_value === "preset=11111111") {
       throw new Error("BAD CATALOG VALUE - 11111111");
     }
@@ -411,7 +399,7 @@ class WBPrivateAPI {
    * @returns {object} - Raw API response data.
    */
   async getSupplierCatalog(supplierId, page = 1) {
-    const res = await this.session.get(this._supplierCatalogUrl, {
+    const res = await this.session.get(Constants.URLS.SUPPLIER.CATALOG, {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
@@ -491,7 +479,7 @@ class WBPrivateAPI {
    * @returns {array} - An array of products
    */
   async getSupplierCatalogPage(supplierId, page = 1, retries = 0) {
-    const res = await this.session.get(this._supplierCatalogUrl, {
+    const res = await this.session.get(Constants.URLS.SUPPLIER.CATALOG, {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
@@ -505,34 +493,6 @@ class WBPrivateAPI {
       retryOptions: { retries },
     });
     return res.data.data?.products ?? res.data.products ?? [];
-  }
-
-  get _hasAntibotToken() {
-    return !!this.session.defaults.headers.common["Cookie"];
-  }
-
-  get _searchUrl() {
-    return this._hasAntibotToken
-      ? Constants.URLS.SEARCH.EXACTMATCH_INTERNAL
-      : Constants.URLS.SEARCH.EXACTMATCH;
-  }
-
-  get _searchTotalProductsUrl() {
-    return this._hasAntibotToken
-      ? Constants.URLS.SEARCH.TOTALPRODUCTS_INTERNAL
-      : Constants.URLS.SEARCH.TOTALPRODUCTS;
-  }
-
-  get _supplierTotalProductsUrl() {
-    return this._hasAntibotToken
-      ? Constants.URLS.SUPPLIER.TOTALPRODUCTS_INTERNAL
-      : Constants.URLS.SUPPLIER.TOTALPRODUCTS;
-  }
-
-  get _supplierCatalogUrl() {
-    return this._hasAntibotToken
-      ? Constants.URLS.SUPPLIER.CATALOG_INTERNAL
-      : Constants.URLS.SUPPLIER.CATALOG;
   }
 
   getPageCount(totalProducts) {

@@ -12,6 +12,7 @@ module.exports = {
     },
     SUPPLIER: {
       INFO: "https://static-basket-01.wbbasket.ru/vol0/data/supplier-by-id/{0}.json",
+      BESTSELLERS: "https://static-basket-01.wbbasket.ru/vol0/constructor-api/shops/v3/{0}.json",
       CATALOG: "https://catalog.wb.ru/sellers/v4/catalog",
       CATALOG_INTERNAL: "https://www.wildberries.ru/__internal/catalog/sellers/v4/catalog",
       TOTALPRODUCTS: "https://catalog.wb.ru/sellers/v8/filters",
@@ -24,8 +25,11 @@ module.exports = {
       CONTENT: "https://wbx-content-v2.wbstatic.net/ru/{0}.json",
       CARD: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/info/ru/card.json",
       SELLERS: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/info/sellers.json",
+      PRICE_HISTORY: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/info/price-history.json",
+      CERTIFICATE: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/info/certificate.json",
       EXTRADATA: "https://www.wildberries.ru/webapi/product/{}/data",
       DETAILS: "https://card.wb.ru/cards/v4/detail",
+      DETAILS_INTERNAL: "https://www.wildberries.ru/__internal/card/cards/v4/detail",
       FEEDBACKS: "https://feedbacks{0}.wb.ru/feedbacks/v2/{1}",      
       QUESTIONS: "https://questions.wildberries.ru/api/v1/questions",
       DELIVERYDATA: "https://card.wb.ru/cards/list",
@@ -40,7 +44,9 @@ module.exports = {
       ADS: "https://catalog-ads.wildberries.ru/api/v5/search",
       CAROUSEL_ADS: "https://carousel-ads.wildberries.ru/api/v4/carousel",
       HINT: "https://suggests.wb.ru/suggests/api/v7/hint",
+      HINT_INTERNAL: "https://www.wildberries.ru/__internal/suggests/suggests/api/v7/hint",
       LIST: "https://card.wb.ru/cards/v4/list",
+      LIST_INTERNAL: "https://www.wildberries.ru/__internal/card/cards/v4/list",
     },
     IMAGES: {
       TINY: "https://basket-{0}.wbbasket.ru/vol{1}/part{2}/{3}/images/tm/{4}.webp", // 900x1200

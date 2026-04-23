@@ -32,6 +32,10 @@ class WBProduct {
 
   constructor(product, { session, destination } = {}) {
     this.session = session || SessionBuilder.create();
+    if (!session) {
+      const token = SessionBuilder.readToken();
+      if (token) SessionBuilder.setAntibotToken(this.session, token);
+    }
     this.destination = destination || Constants.DESTINATIONS.MOSCOW;
     if (typeof product !== "number") {
       Object.assign(this, product);

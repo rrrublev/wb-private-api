@@ -1,6 +1,10 @@
+const fs = require("fs");
+const path = require("path");
 const { fetch, Agent } = require("undici");
 const { stringify } = require("qs");
 const Constants = require("./Constants");
+
+const TOKEN_FILE = path.resolve(__dirname, "../.wbaas_token");
 
 const noopLogger = {
   debug() {},
@@ -20,6 +24,24 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Домены из исходников WB (urls.json), для которых подтверждён proxy-путь /__internal/<subdomain>/
+const PROXY_DOMAINS = new Set([
+  "catalog", "search", "card", "suggests",
+  "recom", "meta", "banners",
+  "u-catalog", "u-search", "u-card", "u-suggests",
+  "u-recom", "search-tags", "u-search-tags",
+]);
+
+function toProxyUrl(url) {
+  return url.replace(
+    /^https:\/\/([\w-]+)\.wb\.ru\//,
+    (match, subdomain) =>
+      PROXY_DOMAINS.has(subdomain)
+        ? `https://www.wildberries.ru/__internal/${subdomain}/`
+        : match
+  );
+}
+
 class Session {
   constructor(config) {
     this._config = config;
@@ -34,13 +56,18 @@ class Session {
     };
   }
 
+  _hasToken() {
+    return !!this.defaults.headers.common["Cookie"];
+  }
+
   async get(url, options = {}) {
     const { params = {}, headers = {}, retryOptions, responseType = "auto" } = options;
 
+    const resolved = this._hasToken() ? toProxyUrl(url) : url;
     const queryString = Object.keys(params).length
       ? "?" + stringify(params, { arrayFormat: "comma", encode: false })
       : "";
-    const fullUrl = url + queryString;
+    const fullUrl = resolved + queryString;
 
     const mergedHeaders = {
       ...this._config.headers,
@@ -149,6 +176,14 @@ class SessionBuilder {
       },
     };
     return new Session(config);
+  }
+
+  static readToken() {
+    try {
+      const data = JSON.parse(fs.readFileSync(TOKEN_FILE, "utf8"));
+      if (data.token && data.expires_at > Date.now()) return data.token;
+    } catch {}
+    return null;
   }
 
   /**
