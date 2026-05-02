@@ -3,8 +3,6 @@ const Constants = require("../src/Constants");
 const WBPrivateAPI = require("../src/WBPrivateAPI");
 const WBProduct = require("../src/WBProduct");
 const WBCatalog = require("../src/WBCatalog");
-const SessionBuilder = require("../src/SessionBuilder");
-
 describe("Интеграционное тестирование URL с методами API", () => {
   let wbapi;
   let testProduct;
@@ -15,7 +13,7 @@ describe("Интеграционное тестирование URL с мето�
       destination: Constants.DESTINATIONS.MOSCOW,
     });
     const token = process.env.WBAAS_TOKEN;
-    if (token) SessionBuilder.setAntibotToken(wbapi.session, token);
+    if (token) wbapi.setToken(token);
 
     try {
       const catalog = await wbapi.search("швабра zetter", 1);
@@ -61,13 +59,13 @@ describe("Интеграционное тестирование URL с мето�
         const supplierInfo = await wbapi.getSupplierInfo(testSupplierId);
         expect(supplierInfo).toBeDefined();
         
-        // Проверяем SupplierTotalProducts
-        const totalProducts = await wbapi.SupplierTotalProducts(testSupplierId);
+        // Проверяем getSupplierProductCount
+        const totalProducts = await wbapi.getSupplierProductCount(testSupplierId);
         expect(typeof totalProducts).toBe("number");
         
         // URL должны соответствовать константам
         expect(Constants.URLS.SUPPLIER.INFO).toContain("supplier-by-id");
-        expect(Constants.URLS.SUPPLIER.TOTALPRODUCTS).toContain("sellers/v8/filters");
+        expect(Constants.URLS.SUPPLIER.FILTERS).toContain("sellers/v8/filters");
         expect(Constants.URLS.SUPPLIER.CATALOG).toContain("sellers/v4/catalog");
         
         console.log("✅ URL поставщика соответствуют методам supplier");
@@ -175,7 +173,7 @@ describe("Интеграционное тестирование URL с мето�
       const urlVersions = {
         "SEARCH.EXACTMATCH": { url: Constants.URLS.SEARCH.EXACTMATCH, expectedVersion: "v18" },
         "SEARCH.TOTALPRODUCTS": { url: Constants.URLS.SEARCH.TOTALPRODUCTS, expectedVersion: "v18" },
-        "SUPPLIER.TOTALPRODUCTS": { url: Constants.URLS.SUPPLIER.TOTALPRODUCTS, expectedVersion: "v8" },
+        "SUPPLIER.FILTERS": { url: Constants.URLS.SUPPLIER.FILTERS, expectedVersion: "v8" },
         "SUPPLIER.CATALOG": { url: Constants.URLS.SUPPLIER.CATALOG, expectedVersion: "v4" },
         "PRODUCT.DETAILS": { url: Constants.URLS.PRODUCT.DETAILS, expectedVersion: "v4" },
         "PRODUCT.FEEDBACKS": { url: Constants.URLS.PRODUCT.FEEDBACKS, expectedVersion: "v2" },
@@ -197,7 +195,7 @@ describe("Интеграционное тестирование URL с мето�
           "PRODUCT.EXTRADATA",
           "PRODUCT.QUESTIONS",
           "SUPPLIER.CATALOG_INTERNAL",
-          "SUPPLIER.TOTALPRODUCTS_INTERNAL",
+          "SUPPLIER.FILTERS_INTERNAL",
           "SUPPLIER.SHIPMENT",
           "SEARCH.TOTALPRODUCTS_INTERNAL",
           "SEARCH.EXACTMATCH_INTERNAL",
@@ -207,7 +205,7 @@ describe("Интеграционное тестирование URL с мето�
           "SEARCH.SIMILAR_BY_NM"
         ],
         "search.wb.ru": ["SEARCH.EXACTMATCH", "SEARCH.TOTALPRODUCTS"],
-        "catalog.wb.ru": ["SUPPLIER.CATALOG", "SUPPLIER.TOTALPRODUCTS", "BRAND.CATALOG"],
+        "catalog.wb.ru": ["SUPPLIER.CATALOG", "SUPPLIER.FILTERS", "BRAND.CATALOG"],
         "card.wb.ru": ["PRODUCT.DETAILS", "PRODUCT.DELIVERYDATA", "SEARCH.LIST"],
         "wb.ru": ["PRODUCT.FEEDBACKS", "SEARCH.HINT"],
         "wbbasket.ru": ["BRAND.IMAGE", "PRODUCT.CARD", "PRODUCT.SELLERS", "IMAGES.TINY", "IMAGES.BIG", "IMAGES.SMALL", "IMAGES.MEDIUM"],

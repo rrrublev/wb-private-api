@@ -1,114 +1,119 @@
 /* eslint-disable no-undef */
 const Constants = require("../src/Constants");
+const Utils = require("../src/Utils");
 const WBPrivateAPI = require("../src/WBPrivateAPI");
-const { fetch } = require("undici");
 
-function buildUrl(base, params) {
-  if (!params || Object.keys(params).length === 0) return base;
-  const qs = new URLSearchParams(params).toString();
-  return `${base}?${qs}`;
+// Инициализация идентична другим интеграционным тестам (WBProduct.test.js и др.):
+// WBPrivateAPI сам читает токен из .wbaas_token через SessionBuilder.readToken(),
+// а process.env.WBAAS_TOKEN — запасной вариант из jest.setup.js (CI без файла).
+const wbapi = new WBPrivateAPI({ destination: Constants.DESTINATIONS.MOSCOW });
+const token = process.env.WBAAS_TOKEN;
+if (token) {
+  wbapi.setToken(token);
+} else {
+  console.warn("⚠️  WBAAS_TOKEN не установлен — защищённые эндпоинты вернут 403/429");
 }
 
-async function httpGet(url, { params, headers } = {}) {
-  const fullUrl = buildUrl(url, params);
-  const response = await fetch(fullUrl, {
-    method: "GET",
-    headers,
-    signal: AbortSignal.timeout(10000),
-  });
-  return response;
+// Обёртка над wbapi.session.get(): возвращает { status, data } на успехе
+// и { status } на HTTP-ошибке (403, 404 и т.п.).
+// Session.get() сам применяет toProxyUrl при наличии токена.
+// Сетевые ошибки (DNS, timeout) бросает дальше — тест их ловит и пропускает.
+async function httpGet(url, { params = {}, headers = {} } = {}) {
+  try {
+    return await wbapi.session.get(url, { params, headers, retryOptions: { retries: 0 } });
+  } catch (error) {
+    if (error.response?.status) return { status: error.response.status };
+    throw error;
+  }
 }
 
-async function httpHead(url, { headers } = {}) {
-  const response = await fetch(url, {
-    method: "HEAD",
-    headers,
-    signal: AbortSignal.timeout(10000),
-  });
-  return response;
+// Строит URL из шаблона Constants.URLS.PRODUCT.*/IMAGES.* для конкретного товара.
+// Использует ту же логику, что Utils.Card.imageURL: basket (zero-padded), vol, part.
+function buildProductUrl(template, productId, extra = {}) {
+  const basket = Utils.Card.getBasketNumber(productId); // "12" — уже zero-padded
+  const vol = Math.floor(productId / 100000);
+  const part = Math.floor(productId / 1000);
+  let url = template
+    .replace("{0}", basket)
+    .replace("{1}", vol)
+    .replace("{2}", part)
+    .replace("{3}", productId);
+  for (const [k, v] of Object.entries(extra)) {
+    url = url.replace(k, v);
+  }
+  return url;
 }
 
-// Тестовые данные, извлеченные из существующих тестов
+// Тестовые данные
 const TEST_DATA = {
-  // Товары
   products: {
     valid: [177899980, 60059650, 304390393, 67858518],
     invalid: [999999999, 123456789]
   },
-  
-  // Поставщики
   suppliers: {
     valid: [1136572, 18740, 206198, 244907],
     invalid: [999999999]
   },
-  
-  // Бренды
   brands: {
     valid: [244907, 206198],
     invalid: [999999999]
   },
-  
-  // Другие параметры
   keywords: ["швабра zetter", "футболка", "телефон"],
-  imtIds: [27334676, 12345678], // Примерные IMT ID
+  imtIds: [27334676, 12345678],
   partitionIds: ["1", "2"]
 };
 
 describe("Тестирование URL из Constants.js", () => {
-  let wbapi;
-  
-  beforeAll(() => {
-    wbapi = new WBPrivateAPI({
-      destination: Constants.DESTINATIONS.MOSCOW,
-    });
-  });
-
   describe("URLS.MAIN_MENU", () => {
     test("Проверка доступности главного меню", async () => {
       const url = Constants.URLS.MAIN_MENU;
-      
+      let result;
       try {
-        const response = await httpGet(url);
-        expect(response.status).toBe(200);
-        console.log(`✅ MAIN_MENU: ${url}`);
+        result = await httpGet(url);
       } catch (error) {
-        console.log(`⚠️  MAIN_MENU недоступен: ${error.message}`);
-        // Не фейлим тест, так как API может быть временно недоступен
-        expect(error.response?.status).toBeGreaterThan(0);
+        console.log(`⚠️  MAIN_MENU недоступен (сеть): ${error.message}`);
+        return;
       }
+      expect(result.status).toBe(200);
+      console.log(`✅ MAIN_MENU: ${url}`);
     }, 15000);
   });
 
   describe("URLS.BRAND", () => {
     test("Проверка URL изображений брендов", async () => {
       const brandId = TEST_DATA.brands.valid[0];
-      const url = Constants.URLS.BRAND.IMAGE.replace("{}", brandId);
-      
+      const url = Utils.Brand.imageURL(brandId);
+      let result;
       try {
-        const response = await httpHead(url);
-        expect([200, 404]).toContain(response.status);
-        console.log(`✅ BRAND.IMAGE: ${url} (${response.status})`);
+        result = await httpGet(url);
       } catch (error) {
-        console.log(`⚠️  BRAND.IMAGE недоступен: ${error.message}`);
+        console.log(`⚠️  BRAND.IMAGE недоступен (сеть): ${error.message}`);
+        return;
       }
+      expect([200, 404]).toContain(result.status);
+      console.log(`✅ BRAND.IMAGE: ${url} (${result.status})`);
     }, 15000);
 
     test("Проверка URL каталога брендов", async () => {
       const url = Constants.URLS.BRAND.CATALOG;
-      
+      let result;
       try {
-        const response = await httpGet(url, {
+        result = await httpGet(url, {
           params: {
             appType: Constants.APPTYPES.DESKTOP,
             curr: Constants.CURRENCIES.RUB,
-            dest: Constants.DESTINATIONS.MOSCOW.ids[0]
+            dest: Constants.DESTINATIONS.MOSCOW.ids[0],
+            brand: TEST_DATA.brands.valid[0],
+            limit: 0,
           }
         });
-        expect([200, 400, 404]).toContain(response.status);
-        console.log(`✅ BRAND.CATALOG: ${url} (${response.status})`);
       } catch (error) {
-        console.log(`⚠️  BRAND.CATALOG недоступен: ${error.message}`);
+        console.log(`⚠️  BRAND.CATALOG недоступен (сеть): ${error.message}`);
+        return;
       }
+      // с токеном → session переключает на _INTERNAL → 200; без токена → 403/429
+      expect(token ? [200] : [400, 403, 404, 429]).toContain(result.status);
+      console.log(`✅ BRAND.CATALOG: ${url} (${result.status})`);
     }, 15000);
   });
 
@@ -116,28 +121,28 @@ describe("Тестирование URL из Constants.js", () => {
     test("Проверка URL информации о поставщике", async () => {
       const supplierId = TEST_DATA.suppliers.valid[0];
       const url = Constants.URLS.SUPPLIER.INFO.replace("{0}", supplierId);
-      
+      let result;
       try {
-        const response = await httpGet(url);
-        expect([200, 404]).toContain(response.status);
-        console.log(`✅ SUPPLIER.INFO: ${url} (${response.status})`);
-
-        if (response.status === 200) {
-          const data = await response.json();
-          expect(data).toBeDefined();
-          expect(data.supplierId || data.id).toBeDefined();
-        }
+        result = await httpGet(url);
       } catch (error) {
-        console.log(`⚠️  SUPPLIER.INFO недоступен: ${error.message}`);
+        console.log(`⚠️  SUPPLIER.INFO недоступен (сеть): ${error.message}`);
+        return;
       }
+      expect([200, 404]).toContain(result.status);
+      if (result.status === 200) {
+        // Структура: { supplierId, supplierName, supplierFullName, inn, ogrn, ... }
+        expect(result.data.supplierId).toBeDefined();
+        expect(typeof result.data.supplierName).toBe("string");
+      }
+      console.log(`✅ SUPPLIER.INFO: ${url} (${result.status})`);
     }, 15000);
 
     test("Проверка URL каталога поставщика", async () => {
       const url = Constants.URLS.SUPPLIER.CATALOG;
       const supplierId = TEST_DATA.suppliers.valid[1];
-      
+      let result;
       try {
-        const response = await httpGet(url, {
+        result = await httpGet(url, {
           params: {
             appType: Constants.APPTYPES.DESKTOP,
             curr: Constants.CURRENCIES.RUB,
@@ -146,19 +151,21 @@ describe("Тестирование URL из Constants.js", () => {
             page: 1
           }
         });
-        expect([200, 400, 404]).toContain(response.status);
-        console.log(`✅ SUPPLIER.CATALOG: ${url} (${response.status})`);
       } catch (error) {
-        console.log(`⚠️  SUPPLIER.CATALOG недоступен: ${error.message}`);
+        console.log(`⚠️  SUPPLIER.CATALOG недоступен (сеть): ${error.message}`);
+        return;
       }
+      // с токеном → session переключает на _INTERNAL → 200; без токена → 403/429
+      expect(token ? [200] : [400, 403, 404, 429]).toContain(result.status);
+      console.log(`✅ SUPPLIER.CATALOG: ${url} (${result.status})`);
     }, 15000);
 
-    test("Проверка URL общего количества товаров поставщика", async () => {
-      const url = Constants.URLS.SUPPLIER.TOTALPRODUCTS;
+    test("Проверка URL фильтров поставщика", async () => {
+      const url = Constants.URLS.SUPPLIER.FILTERS;
       const supplierId = TEST_DATA.suppliers.valid[1];
-      
+      let result;
       try {
-        const response = await httpGet(url, {
+        result = await httpGet(url, {
           params: {
             appType: Constants.APPTYPES.DESKTOP,
             curr: Constants.CURRENCIES.RUB,
@@ -166,84 +173,70 @@ describe("Тестирование URL из Constants.js", () => {
             supplier: supplierId
           }
         });
-        expect([200, 400, 404]).toContain(response.status);
-        console.log(`✅ SUPPLIER.TOTALPRODUCTS: ${url} (${response.status})`);
       } catch (error) {
-        console.log(`⚠️  SUPPLIER.TOTALPRODUCTS недоступен: ${error.message}`);
+        console.log(`⚠️  SUPPLIER.FILTERS недоступен (сеть): ${error.message}`);
+        return;
       }
+      // с токеном → session переключает на _INTERNAL → 200; без токена → 403/429
+      expect(token ? [200] : [400, 403, 404, 429]).toContain(result.status);
+      console.log(`✅ SUPPLIER.FILTERS: ${url} (${result.status})`);
     }, 15000);
 
     test("Проверка URL отгрузки поставщика", async () => {
       const supplierId = TEST_DATA.suppliers.valid[0];
       const url = Constants.URLS.SUPPLIER.SHIPMENT.replace("{0}", supplierId);
-      
+      let result;
       try {
-        const response = await httpGet(url, {
-          headers: { "x-client-name": "site" }
-        });
-        expect([200, 404, 403]).toContain(response.status);
-        console.log(`✅ SUPPLIER.SHIPMENT: ${url} (${response.status})`);
+        result = await httpGet(url, { headers: { "x-client-name": "site" } });
       } catch (error) {
-        console.log(`⚠️  SUPPLIER.SHIPMENT недоступен: ${error.message}`);
+        console.log(`⚠️  SUPPLIER.SHIPMENT недоступен (сеть): ${error.message}`);
+        return;
       }
+      expect([200, 403, 404]).toContain(result.status);
+      console.log(`✅ SUPPLIER.SHIPMENT: ${url} (${result.status})`);
     }, 15000);
   });
 
   describe("URLS.PRODUCT", () => {
     test("Проверка URL карточки товара", async () => {
       const productId = TEST_DATA.products.valid[0];
-      const basketNumber = getBasketNumber(productId);
-      const vol = getVol(productId);
-      const part = getPart(productId);
-      
-      const url = Constants.URLS.PRODUCT.CARD
-        .replace("{0}", basketNumber < 10 ? `0${basketNumber}` : basketNumber)
-        .replace("{1}", vol)
-        .replace("{2}", part)
-        .replace("{3}", productId);
-      
+      const url = buildProductUrl(Constants.URLS.PRODUCT.CARD, productId);
+      let result;
       try {
-        const response = await httpGet(url);
-        expect([200, 404]).toContain(response.status);
-        console.log(`✅ PRODUCT.CARD: ${url} (${response.status})`);
-
-        if (response.status === 200) {
-          const data = await response.json();
-          expect(data).toBeDefined();
-          expect(data.nm_id || data.id).toBeDefined();
-        }
+        result = await httpGet(url);
       } catch (error) {
-        console.log(`⚠️  PRODUCT.CARD недоступен: ${error.message}`);
+        console.log(`⚠️  PRODUCT.CARD недоступен (сеть): ${error.message}`);
+        return;
       }
+      expect([200, 404]).toContain(result.status);
+      if (result.status === 200) {
+        // Структура: { imt_id, nm_id, imt_name, description, options, ... }
+        expect(result.data.nm_id).toBeDefined();
+        expect(result.data.imt_id).toBeDefined();
+      }
+      console.log(`✅ PRODUCT.CARD: ${url} (${result.status})`);
     }, 15000);
 
     test("Проверка URL продавцов товара", async () => {
       const productId = TEST_DATA.products.valid[0];
-      const basketNumber = getBasketNumber(productId);
-      const vol = getVol(productId);
-      const part = getPart(productId);
-      
-      const url = Constants.URLS.PRODUCT.SELLERS
-        .replace("{0}", basketNumber < 10 ? `0${basketNumber}` : basketNumber)
-        .replace("{1}", vol)
-        .replace("{2}", part)
-        .replace("{3}", productId);
-      
+      const url = buildProductUrl(Constants.URLS.PRODUCT.SELLERS, productId);
+      let result;
       try {
-        const response = await httpGet(url);
-        expect([200, 404]).toContain(response.status);
-        console.log(`✅ PRODUCT.SELLERS: ${url} (${response.status})`);
+        result = await httpGet(url);
       } catch (error) {
-        console.log(`⚠️  PRODUCT.SELLERS недоступен: ${error.message}`);
+        console.log(`⚠️  PRODUCT.SELLERS недоступен (сеть): ${error.message}`);
+        return;
       }
+      expect([200, 404]).toContain(result.status);
+      console.log(`✅ PRODUCT.SELLERS: ${url} (${result.status})`);
     }, 15000);
 
     test("Проверка URL деталей товара", async () => {
       const url = Constants.URLS.PRODUCT.DETAILS;
       const productId = TEST_DATA.products.valid[0];
-      
+      let result;
       try {
-        const response = await httpGet(url, {
+        result = await httpGet(url, {
           params: {
             appType: Constants.APPTYPES.DESKTOP,
             curr: Constants.CURRENCIES.RUB,
@@ -251,11 +244,13 @@ describe("Тестирование URL из Constants.js", () => {
             nm: `${productId};`
           }
         });
-        expect([200, 400, 404]).toContain(response.status);
-        console.log(`✅ PRODUCT.DETAILS: ${url} (${response.status})`);
       } catch (error) {
-        console.log(`⚠️  PRODUCT.DETAILS недоступен: ${error.message}`);
+        console.log(`⚠️  PRODUCT.DETAILS недоступен (сеть): ${error.message}`);
+        return;
       }
+      // с токеном → session переключает на _INTERNAL → 200; без токена → 403
+      expect(token ? [200] : [400, 403, 404]).toContain(result.status);
+      console.log(`✅ PRODUCT.DETAILS: ${url} (${result.status})`);
     }, 15000);
 
     test("Проверка URL отзывов товара", async () => {
@@ -264,29 +259,37 @@ describe("Тестирование URL из Constants.js", () => {
       const url = Constants.URLS.PRODUCT.FEEDBACKS
         .replace("{0}", partitionId)
         .replace("{1}", imtId);
-      
+      let result;
       try {
-        const response = await httpGet(url);
-        expect([200, 404]).toContain(response.status);
-        console.log(`✅ PRODUCT.FEEDBACKS: ${url} (${response.status})`);
+        result = await httpGet(url);
       } catch (error) {
-        console.log(`⚠️  PRODUCT.FEEDBACKS недоступен: ${error.message}`);
+        console.log(`⚠️  PRODUCT.FEEDBACKS недоступен (сеть): ${error.message}`);
+        return;
       }
+      expect([200, 404]).toContain(result.status);
+      if (result.status === 200) {
+        // Структура: { feedbacks, feedbackCount, valuation, ... }
+        expect(typeof result.data.feedbackCount).toBe("number");
+      }
+      console.log(`✅ PRODUCT.FEEDBACKS: ${url} (${result.status})`);
     }, 15000);
 
     test("Проверка URL вопросов товара", async () => {
       const url = Constants.URLS.PRODUCT.QUESTIONS;
       const imtId = TEST_DATA.imtIds[0];
-      
+      let result;
       try {
-        const response = await httpGet(url, {
-          params: { imtId: imtId, onlyCount: true }
-        });
-        expect([200, 400, 404]).toContain(response.status);
-        console.log(`✅ PRODUCT.QUESTIONS: ${url} (${response.status})`);
+        result = await httpGet(url, { params: { imtId, onlyCount: true } });
       } catch (error) {
-        console.log(`⚠️  PRODUCT.QUESTIONS недоступен: ${error.message}`);
+        console.log(`⚠️  PRODUCT.QUESTIONS недоступен (сеть): ${error.message}`);
+        return;
       }
+      expect([200, 400, 404]).toContain(result.status);
+      if (result.status === 200) {
+        // Структура: { questions, count, err }
+        expect(typeof result.data.count).toBe("number");
+      }
+      console.log(`✅ PRODUCT.QUESTIONS: ${url} (${result.status})`);
     }, 15000);
   });
 
@@ -294,9 +297,9 @@ describe("Тестирование URL из Constants.js", () => {
     test("Проверка URL точного поиска", async () => {
       const url = Constants.URLS.SEARCH.EXACTMATCH;
       const keyword = TEST_DATA.keywords[0];
-      
+      let result;
       try {
-        const response = await httpGet(url, {
+        result = await httpGet(url, {
           params: {
             appType: Constants.APPTYPES.DESKTOP,
             curr: Constants.CURRENCIES.RUB,
@@ -305,99 +308,97 @@ describe("Тестирование URL из Constants.js", () => {
             resultset: "catalog"
           }
         });
-        // 498 — антибот WB, URL корректен но требует браузерной сессии
-        expect([200, 400, 498]).toContain(response.status);
-        console.log(`✅ SEARCH.EXACTMATCH: ${url} (${response.status})`);
       } catch (error) {
-        console.log(`⚠️  SEARCH.EXACTMATCH недоступен: ${error.message}`);
+        console.log(`⚠️  SEARCH.EXACTMATCH недоступен (сеть): ${error.message}`);
+        return;
       }
+      // 498 — антибот WB, требует браузерной сессии
+      expect([200, 400, 498]).toContain(result.status);
+      console.log(`✅ SEARCH.EXACTMATCH: ${url} (${result.status})`);
     }, 15000);
 
     test("Проверка URL поиска похожих товаров", async () => {
       const url = Constants.URLS.SEARCH.SIMILAR_BY_NM;
       const productId = TEST_DATA.products.valid[1];
-      
+      let result;
       try {
-        const response = await httpGet(url, { params: { nm: productId } });
-        expect([200, 404]).toContain(response.status);
-        console.log(`✅ SEARCH.SIMILAR_BY_NM: ${url} (${response.status})`);
+        result = await httpGet(url, { params: { nm: productId } });
       } catch (error) {
-        console.log(`⚠️  SEARCH.SIMILAR_BY_NM недоступен: ${error.message}`);
+        console.log(`⚠️  SEARCH.SIMILAR_BY_NM недоступен (сеть): ${error.message}`);
+        return;
       }
+      expect([200, 404]).toContain(result.status);
+      console.log(`✅ SEARCH.SIMILAR_BY_NM: ${url} (${result.status})`);
     }, 15000);
 
+    // catalog-ads.wildberries.ru и carousel-ads.wildberries.ru недоступны с данного IP
+    // (ENOTFOUND — геоблок или хосты выведены из эксплуатации).
+    // Тесты проверяют только что URL прописан корректно в Constants.
     test("Проверка URL рекламы в поиске", async () => {
       const url = Constants.URLS.SEARCH.ADS;
-      const keyword = TEST_DATA.keywords[0];
-      
+      expect(url).toMatch(/^https:\/\//);
+      let result;
       try {
-        const response = await httpGet(url, { params: { keyword: keyword } });
-        expect([200, 400, 404]).toContain(response.status);
-        console.log(`✅ SEARCH.ADS: ${url} (${response.status})`);
+        result = await httpGet(url, { params: { keyword: TEST_DATA.keywords[0] } });
+        expect([200, 400, 403, 404]).toContain(result.status);
+        console.log(`✅ SEARCH.ADS: ${url} (${result.status})`);
       } catch (error) {
-        console.log(`⚠️  SEARCH.ADS недоступен: ${error.message}`);
+        console.log(`⚠️  SEARCH.ADS недоступен (сеть): ${error.message}`);
       }
     }, 15000);
 
     test("Проверка URL карусельной рекламы", async () => {
       const url = Constants.URLS.SEARCH.CAROUSEL_ADS;
-      const productId = TEST_DATA.products.valid[0];
-      
+      expect(url).toMatch(/^https:\/\//);
+      let result;
       try {
-        const response = await httpGet(url, { params: { nm: productId } });
-        expect([200, 404]).toContain(response.status);
-        console.log(`✅ SEARCH.CAROUSEL_ADS: ${url} (${response.status})`);
+        result = await httpGet(url, { params: { nm: TEST_DATA.products.valid[0] } });
+        expect([200, 400, 403, 404]).toContain(result.status);
+        console.log(`✅ SEARCH.CAROUSEL_ADS: ${url} (${result.status})`);
       } catch (error) {
-        console.log(`⚠️  SEARCH.CAROUSEL_ADS недоступен: ${error.message}`);
+        console.log(`⚠️  SEARCH.CAROUSEL_ADS недоступен (сеть): ${error.message}`);
       }
     }, 15000);
 
     test("Проверка URL подсказок поиска", async () => {
       const url = Constants.URLS.SEARCH.HINT;
-      const query = TEST_DATA.keywords[0];
-      
+      let result;
       try {
-        const response = await httpGet(url, {
+        result = await httpGet(url, {
           params: {
-            query: query,
+            query: TEST_DATA.keywords[0],
             gender: Constants.SEX.COMMON,
             locale: Constants.LOCALES.RU,
-            appType: Constants.APPTYPES.DESKTOP
+            lang: Constants.LOCALES.RU,
+            appType: Constants.APPTYPES.DESKTOP,
           }
         });
-        expect([200, 400]).toContain(response.status);
-        console.log(`✅ SEARCH.HINT: ${url} (${response.status})`);
       } catch (error) {
-        console.log(`⚠️  SEARCH.HINT недоступен: ${error.message}`);
+        console.log(`⚠️  SEARCH.HINT недоступен (сеть): ${error.message}`);
+        return;
       }
+      // с токеном → session переключает на _INTERNAL → 200; без токена → 403
+      expect(token ? [200] : [400, 403]).toContain(result.status);
+      console.log(`✅ SEARCH.HINT: ${url} (${result.status})`);
     }, 15000);
   });
 
   describe("URLS.IMAGES", () => {
     test("Проверка URL изображений товаров", async () => {
       const productId = TEST_DATA.products.valid[0];
-      const basketNumber = getBasketNumber(productId);
-      const vol = getVol(productId);
-      const part = getPart(productId);
       const imageOrder = 1;
-      
-      const imageTypes = ["TINY", "BIG", "SMALL", "MEDIUM"];
-      
-      for (const imageType of imageTypes) {
-        const url = Constants.URLS.IMAGES[imageType]
-          .replace("{0}", basketNumber < 10 ? `0${basketNumber}` : basketNumber)
-          .replace("{1}", vol)
-          .replace("{2}", part)
-          .replace("{3}", productId)
-          .replace("{4}", imageOrder);
-        
+
+      for (const imageType of ["TINY", "BIG", "SMALL", "MEDIUM"]) {
+        const url = buildProductUrl(Constants.URLS.IMAGES[imageType], productId, { "{4}": imageOrder });
+        let result;
         try {
-          const response = await httpHead(url);
-          expect([200, 404]).toContain(response.status);
-          console.log(`✅ IMAGES.${imageType}: ${url} (${response.status})`);
+          result = await httpGet(url);
         } catch (error) {
-          console.log(`⚠️  IMAGES.${imageType} недоступен: ${error.message}`);
+          console.log(`⚠️  IMAGES.${imageType} недоступен (сеть): ${error.message}`);
+          continue;
         }
+        expect([200, 404]).toContain(result.status);
+        console.log(`✅ IMAGES.${imageType}: ${url} (${result.status})`);
       }
     }, 30000);
   });
@@ -405,45 +406,43 @@ describe("Тестирование URL из Constants.js", () => {
   describe("URLS.PROMOS", () => {
     test("Проверка URL промо-акций", async () => {
       const url = Constants.URLS.PROMOS;
-      
+      let result;
       try {
-        const response = await httpGet(url);
-        expect([200, 404, 498]).toContain(response.status);
-        console.log(`✅ PROMOS: ${url} (${response.status})`);
+        result = await httpGet(url);
       } catch (error) {
-        console.log(`⚠️  PROMOS недоступен: ${error.message}`);
+        console.log(`⚠️  PROMOS недоступен (сеть): ${error.message}`);
+        return;
       }
+      // 498 — антибот WB
+      expect([200, 404, 498]).toContain(result.status);
+      console.log(`✅ PROMOS: ${url} (${result.status})`);
     }, 15000);
   });
 
-  // Тест на валидацию структуры URL
   describe("Валидация структуры URL", () => {
     test("Все URL должны быть валидными", () => {
       const allUrls = getAllUrlsFromConstants();
-      
+
       allUrls.forEach(({ path, url }) => {
         expect(url).toBeDefined();
         expect(typeof url).toBe("string");
         expect(url.length).toBeGreaterThan(0);
-        
-        // Проверяем что URL начинается с http
         if (!url.includes("{")) {
           expect(url).toMatch(/^https?:\/\//);
         }
-        
         console.log(`✅ URL структура валидна: ${path} = ${url}`);
       });
     });
 
     test("URL с плейсхолдерами должны содержать правильные маркеры", () => {
       const urlsWithPlaceholders = [
-        { path: "BRAND.IMAGE", url: Constants.URLS.BRAND.IMAGE, placeholders: ["{0}"] },
-        { path: "SUPPLIER.INFO", url: Constants.URLS.SUPPLIER.INFO, placeholders: ["{0}"] },
+        { path: "BRAND.IMAGE",       url: Constants.URLS.BRAND.IMAGE,       placeholders: ["{0}"] },
+        { path: "SUPPLIER.INFO",     url: Constants.URLS.SUPPLIER.INFO,     placeholders: ["{0}"] },
         { path: "SUPPLIER.SHIPMENT", url: Constants.URLS.SUPPLIER.SHIPMENT, placeholders: ["{0}"] },
-        { path: "PRODUCT.CARD", url: Constants.URLS.PRODUCT.CARD, placeholders: ["{0}", "{1}", "{2}", "{3}"] },
-        { path: "PRODUCT.SELLERS", url: Constants.URLS.PRODUCT.SELLERS, placeholders: ["{0}", "{1}", "{2}", "{3}"] },
+        { path: "PRODUCT.CARD",      url: Constants.URLS.PRODUCT.CARD,      placeholders: ["{0}", "{1}", "{2}", "{3}"] },
+        { path: "PRODUCT.SELLERS",   url: Constants.URLS.PRODUCT.SELLERS,   placeholders: ["{0}", "{1}", "{2}", "{3}"] },
         { path: "PRODUCT.FEEDBACKS", url: Constants.URLS.PRODUCT.FEEDBACKS, placeholders: ["{0}", "{1}"] },
-        { path: "IMAGES.BIG", url: Constants.URLS.IMAGES.BIG, placeholders: ["{0}", "{1}", "{2}", "{3}", "{4}"] }
+        { path: "IMAGES.BIG",        url: Constants.URLS.IMAGES.BIG,        placeholders: ["{0}", "{1}", "{2}", "{3}", "{4}"] }
       ];
 
       urlsWithPlaceholders.forEach(({ path, url, placeholders }) => {
@@ -456,43 +455,12 @@ describe("Тестирование URL из Constants.js", () => {
   });
 });
 
-// Вспомогательные функции для работы с товарами
-function getBasketNumber(productId) {
-  const BASKETS = [
-    [0, 143], [144, 287], [288, 431], [432, 719], [720, 1007],
-    [1008, 1061], [1062, 1115], [1116, 1169], [1170, 1313], [1314, 1601],
-    [1602, 1655], [1656, 1919], [1920, 2045], [2046, 2189], [2091, 2405], [2406, 2621]
-  ];
-  
-  const vol = parseInt(productId / 100000, 10);
-  const basket = BASKETS.reduce((accumulator, current, index) => {
-    if (vol >= current[0] && vol <= current[1]) {
-      return index + 1;
-    }
-    return accumulator;
-  }, 1);
-  return basket;
-}
-
-function getVol(productId) {
-  const limits = [0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8];
-  const sku = String(productId);
-  return sku.length > 5 ? sku.substring(0, limits[sku.length]) : 0;
-}
-
-function getPart(productId) {
-  const limits = [0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8];
-  const sku = String(productId);
-  return sku.substring(0, limits[sku.length + 2]);
-}
-
 function getAllUrlsFromConstants() {
   const urls = [];
-  
+
   function extractUrls(obj, path = "") {
     for (const [key, value] of Object.entries(obj)) {
       const currentPath = path ? `${path}.${key}` : key;
-      
       if (typeof value === "string" && value.startsWith("http")) {
         urls.push({ path: currentPath, url: value });
       } else if (typeof value === "object" && value !== null) {
@@ -500,7 +468,7 @@ function getAllUrlsFromConstants() {
       }
     }
   }
-  
+
   extractUrls(Constants.URLS);
   return urls;
 }

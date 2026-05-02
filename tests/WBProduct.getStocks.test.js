@@ -3,14 +3,13 @@ const Constants = require("../src/Constants");
 const WBPrivateAPI = require("../src/WBPrivateAPI");
 const WBProduct = require("../src/WBProduct");
 const WBCatalog = require("../src/WBCatalog");
-const SessionBuilder = require("../src/SessionBuilder");
 
 let wbapi;
 
 beforeAll(() => {
   wbapi = new WBPrivateAPI({ destination: Constants.DESTINATIONS.MOSCOW });
   const token = process.env.WBAAS_TOKEN;
-  if (token) SessionBuilder.setAntibotToken(wbapi.session, token);
+  if (token) wbapi.setToken(token);
 });
 
 describe("Детальное тестирование метода WBProduct.getStocks()", () => {

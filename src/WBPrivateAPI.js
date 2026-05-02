@@ -189,19 +189,73 @@ class WBPrivateAPI {
    * @param {number} supplierId - the search query
    * @returns {number} Total number of products
    */
-  async SupplierTotalProducts(supplierId) {
-    const res = await this.session.get(Constants.URLS.SUPPLIER.TOTALPRODUCTS, {
+  async getSupplierProductCount(supplierId) {
+    const res = await this.session.get(Constants.URLS.SUPPLIER.CATALOG, {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
         dest: this.destination.ids[0],
-        filters: "xsubject",
-        spp: "30",
         supplier: supplierId,
+        limit: 0,
       },
     });
 
-    return res.data.data?.total || 0;
+    return res.data.total || 0;
+  }
+
+  /**
+   * @returns {number} Total number of products for a brand
+   */
+  async getBrandProductCount(brandId) {
+    const res = await this.session.get(Constants.URLS.BRAND.CATALOG, {
+      params: {
+        appType: Constants.APPTYPES.DESKTOP,
+        curr: Constants.CURRENCIES.RUB,
+        dest: this.destination.ids[0],
+        brand: brandId,
+        limit: 0,
+      },
+    });
+    return res.data.total || 0;
+  }
+
+  /**
+   * @returns {Promise<object>} Raw API response for brand catalog page
+   */
+  async getBrandCatalog(brandId, page = 1) {
+    const res = await this.session.get(Constants.URLS.BRAND.CATALOG, {
+      params: {
+        appType: Constants.APPTYPES.DESKTOP,
+        curr: Constants.CURRENCIES.RUB,
+        dest: this.destination.ids[0],
+        lang: Constants.LOCALES.RU,
+        page,
+        sort: "popular",
+        spp: "30",
+        brand: brandId,
+      },
+    });
+    return res.data || {};
+  }
+
+  /**
+   * @returns {array} Products from a brand catalog page
+   */
+  async getBrandCatalogPage(brandId, page = 1, retries = 0) {
+    const res = await this.session.get(Constants.URLS.BRAND.CATALOG, {
+      params: {
+        appType: Constants.APPTYPES.DESKTOP,
+        curr: Constants.CURRENCIES.RUB,
+        dest: this.destination.ids[0],
+        lang: Constants.LOCALES.RU,
+        page,
+        sort: "popular",
+        spp: "30",
+        brand: brandId,
+      },
+      retryOptions: { retries },
+    });
+    return res.data.data?.products ?? res.data.products ?? [];
   }
 
   /**
@@ -396,7 +450,7 @@ class WBPrivateAPI {
    * It takes a supplier id and returns an array of products
    * @param {number} supplierId - supplier ID
    * @param {number} page - page number
-   * @returns {object} - Raw API response data.
+   * @returns {Promise<object>} - Raw API response data.
    */
   async getSupplierCatalog(supplierId, page = 1) {
     const res = await this.session.get(Constants.URLS.SUPPLIER.CATALOG, {
@@ -424,7 +478,7 @@ class WBPrivateAPI {
   async getSupplierCatalogAll(supplierId, pageCount = 0, retries = 0) {
     const products = [];
 
-    const totalProducts = await this.SupplierTotalProducts(supplierId);
+    const totalProducts = await this.getSupplierProductCount(supplierId);
     if (totalProducts === 0) {
       return new WBCatalog({
         supplierId,

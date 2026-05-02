@@ -3,7 +3,6 @@ const Constants = require("../src/Constants");
 const WBPrivateAPI = require("../src/WBPrivateAPI");
 const WBProduct = require("../src/WBProduct");
 
-const SessionBuilder = require("../src/SessionBuilder");
 const WBCatalog = require("../src/WBCatalog");
 
 let wbapi;
@@ -13,7 +12,7 @@ let product;
 beforeAll(async () => {
   wbapi = new WBPrivateAPI({ destination: Constants.DESTINATIONS.MOSCOW });
   const token = process.env.WBAAS_TOKEN;
-  if (token) SessionBuilder.setAntibotToken(wbapi.session, token);
+  if (token) wbapi.setToken(token);
 
   catalog = await wbapi.search("швабра zetter", 1);
   product = catalog instanceof WBCatalog ? catalog.products[0] : null;

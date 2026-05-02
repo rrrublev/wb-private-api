@@ -3,14 +3,12 @@
 const Constants = require("../src/Constants");
 const WBPrivateAPI = require("../src/WBPrivateAPI");
 
-const SessionBuilder = require("../src/SessionBuilder");
-
 let wbapi;
 
 beforeAll(() => {
   wbapi = new WBPrivateAPI({ destination: Constants.DESTINATIONS.MOSCOW });
   const token = process.env.WBAAS_TOKEN;
-  if (token) SessionBuilder.setAntibotToken(wbapi.session, token);
+  if (token) wbapi.setToken(token);
 });
 
 describe("Проверка поиска товаров WBPrivateAPI.search()", () => {
@@ -136,10 +134,10 @@ describe("Проверка выдачи данных по продавцу", () 
     expect(supplier.supplierId).toBe(1136572);
   }, 15000);
 
-  test("Проверка метода .SupplierTotalProducts() на получение общего количества товаров поставщика", async () => {
+  test("Проверка метода .getSupplierProductCount() на получение общего количества товаров поставщика", async () => {
     const supplierId = 18740;
-    const totalProducts = await wbapi.SupplierTotalProducts(supplierId);
-    console.log(`SupplierTotalProducts(${supplierId}): ${totalProducts}`);
+    const totalProducts = await wbapi.getSupplierProductCount(supplierId);
+    console.log(`getSupplierProductCount(${supplierId}): ${totalProducts}`);
     expect(totalProducts).toBeGreaterThan(0);
   }, 15000);
 

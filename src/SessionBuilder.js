@@ -60,6 +60,7 @@ class Session {
     return !!this.defaults.headers.common["Cookie"];
   }
 
+  /** @returns {Promise<{status: number, data: any}>} */
   async get(url, options = {}) {
     const { params = {}, headers = {}, retryOptions, responseType = "auto" } = options;
 
@@ -153,6 +154,88 @@ class Session {
 
     if (lastError) {
       lastError.config = { url, method: "get" };
+      throw lastError;
+    }
+  }
+
+  /** @returns {Promise<{status: number, data: any}>} */
+  async post(url, body, options = {}) {
+    const { headers = {}, retryOptions } = options;
+
+    const mergedHeaders = {
+      ...this._config.headers,
+      ...this.defaults.headers.common,
+      "Content-Type": "application/json",
+      ...headers,
+    };
+
+    const retries = retryOptions?.retries ?? this._config.retries;
+    const retryCondition =
+      retryOptions?.retryCondition ??
+      ((ctx) => ctx.status === 429 || ctx.status >= 500 || Boolean(ctx.error));
+
+    let lastError;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      if (attempt > 0) {
+        const delay = Math.min(Math.pow(2, attempt) * 1000 + Math.random() * 1000, 10000);
+        this._logger.debug("Retry attempt", { attempt, url });
+        await sleep(delay);
+      }
+
+      let response;
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: mergedHeaders,
+          body: JSON.stringify(body),
+          dispatcher: this._agent,
+          signal: AbortSignal.timeout(this._config.timeout),
+        });
+      } catch (error) {
+        lastError = error;
+        const shouldRetry =
+          attempt < retries &&
+          retryCondition({ status: null, error, attempt, url, method: "post" });
+        if (!shouldRetry) {
+          error.config = { url, method: "post" };
+          throw error;
+        }
+        continue;
+      }
+
+      if (response.status >= 200 && response.status < 300) {
+        let data;
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          data = await response.json();
+        } else {
+          const text = await response.text();
+          const trimmed = text.trimStart();
+          if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            try { data = JSON.parse(text); } catch { data = text; }
+          } else {
+            data = text;
+          }
+        }
+        return { status: response.status, data };
+      }
+
+      const shouldRetry =
+        attempt < retries &&
+        retryCondition({ status: response.status, error: null, attempt, url, method: "post" });
+
+      if (shouldRetry) {
+        lastError = createHttpError(response.status, url, "post");
+        continue;
+      }
+
+      const err = createHttpError(response.status, url, "post");
+      this._logger.error("Request failed", { url, status: response.status });
+      throw err;
+    }
+
+    if (lastError) {
+      lastError.config = { url, method: "post" };
       throw lastError;
     }
   }
