@@ -1,7 +1,7 @@
 {
   "name": "@rrrublev/wb-private-api",
   "version": "0.8.4",
-  "description": "Wildberries Private API",
+  "description": "Node.js wrapper for Wildberries private API",
   "main": "index.js",
   "scripts": {
     "test": "jest --selectProjects unit --verbose --detectOpenHandles",
@@ -17,9 +17,9 @@
     "api",
     "nodejs"
   ],
-  "author": "Stanislav @glmn Gelman",
+  "author": "rublev (https://github.com/rrrublev)",
   "contributors": [
-    "@rrrublev - доработки и оптимизация"
+    "Stanislav Gelman (https://github.com/glmn) (original author)"
   ],
   "license": "ISC",
   "bugs": {
