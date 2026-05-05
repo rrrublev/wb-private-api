@@ -172,7 +172,6 @@ describe("Интеграционное тестирование URL с мето�
     test("Версии API должны быть актуальными", () => {
       const urlVersions = {
         "SEARCH.EXACTMATCH": { url: Constants.URLS.SEARCH.EXACTMATCH, expectedVersion: "v18" },
-        "SEARCH.TOTALPRODUCTS": { url: Constants.URLS.SEARCH.TOTALPRODUCTS, expectedVersion: "v18" },
         "SUPPLIER.FILTERS": { url: Constants.URLS.SUPPLIER.FILTERS, expectedVersion: "v8" },
         "SUPPLIER.CATALOG": { url: Constants.URLS.SUPPLIER.CATALOG, expectedVersion: "v4" },
         "PRODUCT.DETAILS": { url: Constants.URLS.PRODUCT.DETAILS, expectedVersion: "v4" },
@@ -197,14 +196,13 @@ describe("Интеграционное тестирование URL с мето�
           "SUPPLIER.CATALOG_INTERNAL",
           "SUPPLIER.FILTERS_INTERNAL",
           "SUPPLIER.SHIPMENT",
-          "SEARCH.TOTALPRODUCTS_INTERNAL",
           "SEARCH.EXACTMATCH_INTERNAL",
           "SEARCH.CATALOG",
           "SEARCH.ADS",
           "SEARCH.CAROUSEL_ADS",
           "SEARCH.SIMILAR_BY_NM"
         ],
-        "search.wb.ru": ["SEARCH.EXACTMATCH", "SEARCH.TOTALPRODUCTS"],
+        "search.wb.ru": ["SEARCH.EXACTMATCH"],
         "catalog.wb.ru": ["SUPPLIER.CATALOG", "SUPPLIER.FILTERS", "BRAND.CATALOG"],
         "card.wb.ru": ["PRODUCT.DETAILS", "PRODUCT.DELIVERYDATA", "SEARCH.LIST"],
         "wb.ru": ["PRODUCT.FEEDBACKS", "SEARCH.HINT"],

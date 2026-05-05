@@ -8,7 +8,7 @@ const { getBasketNumber, videoURL } = require("./Utils").Card;
 
 function numToUint8Array(r) {
   const t = new Uint8Array(8);
-  for (let n = 0; n < 8; n++) (t[n] = r % 256), (r = Math.floor(r / 256));
+  for (let n = 0; n < 8; n++) ((t[n] = r % 256), (r = Math.floor(r / 256)));
   return t;
 }
 
@@ -17,12 +17,10 @@ function crc16Arc(r) {
   let n = 0;
   for (let i = 0; i < t.length; i++) {
     n ^= t[i];
-    for (let j = 0; j < 8; j++)
-      (1 & n) > 0 ? (n = (n >> 1) ^ 40961) : (n >>= 1);
+    for (let j = 0; j < 8; j++) (1 & n) > 0 ? (n = (n >> 1) ^ 40961) : (n >>= 1);
   }
   return n;
 }
-
 
 class WBProduct {
   stocks = [];
@@ -37,6 +35,7 @@ class WBProduct {
       if (token) SessionBuilder.setAntibotToken(this.session, token);
     }
     this.destination = destination || Constants.DESTINATIONS.MOSCOW;
+    this.dest = this.destination?.ids?.at(-1) ?? null;
     if (typeof product !== "number") {
       Object.assign(this, product);
     } else {
@@ -46,11 +45,7 @@ class WBProduct {
 
   static async create(productId, options = {}) {
     const instance = new WBProduct(productId, options);
-    await Promise.all([
-      instance.getProductData(),
-      instance.getDetailsData(),
-      instance.getSellerData(),
-    ]);
+    await Promise.all([instance.getProductData(), instance.getDetailsData(), instance.getSellerData()]);
     await instance.getQuestionsCount();
     return instance;
   }
@@ -69,16 +64,13 @@ class WBProduct {
    * @returns The total number of stocks.
    */
   get totalStocks() {
-    return (this._rawResponse.details?.sizes?.[0]?.stocks || []).reduce(
-      (sum, x) => sum + x.qty,
-      0
-    );
+    return (this._rawResponse.details?.sizes?.[0]?.stocks || []).reduce((sum, x) => sum + x.qty, 0);
   }
 
   _cardUrl(urlTemplate) {
     const basket = getBasketNumber(this.id);
-    const vol    = Math.floor(this.id / 100000);
-    const part   = Math.floor(this.id / 1000);
+    const vol = Math.floor(this.id / 100000);
+    const part = Math.floor(this.id / 1000);
     return format(urlTemplate, basket, vol, part, this.id);
   }
 
@@ -100,7 +92,7 @@ class WBProduct {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
-        dest: this.destination.ids[0],
+        dest: this.dest,
         spp: "30",
         lang: Constants.LOCALES.RU,
         nm: this.id,
@@ -262,9 +254,7 @@ class WBProduct {
   async getVideo(quality = "1440p") {
     // bit 4 (16) of viewFlags = hasVideo (from WB source: _q.hasVideo = BigInt(16))
     const viewFlags = this._rawResponse?.details?.viewFlags;
-    const hasVideo = viewFlags != null
-      ? !!(viewFlags & 16)
-      : this._rawResponse?.media?.has_video;
+    const hasVideo = viewFlags != null ? !!(viewFlags & 16) : this._rawResponse?.media?.has_video;
     if (!hasVideo) return { hasVideo: false };
 
     const playlistUrl = videoURL(this.id, "hls", quality);
@@ -284,9 +274,7 @@ class WBProduct {
       return { hasVideo: true, quality, playlistUrl, error: "playlist fetch failed" };
     }
 
-    const hls = Array.from({ length: chunks }, (_, i) =>
-      playlistUrl.replace("index.m3u8", `${i + 1}.ts`)
-    );
+    const hls = Array.from({ length: chunks }, (_, i) => playlistUrl.replace("index.m3u8", `${i + 1}.ts`));
 
     // MP4 exists only as a single 360p preview file (WB autoplay preview).
     // It does not cover the full video duration.

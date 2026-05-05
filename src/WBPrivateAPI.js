@@ -17,17 +17,16 @@ async function mapWithConcurrency(items, limit, mapper) {
     }
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, () => worker())
-  );
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
   return results;
 }
 
 class WBPrivateAPI {
   /* Creating a new instance of the class WBPrivateAPI. */
-  constructor({ destination, wbaasToken }) {
+  constructor({ destination, wbaasToken } = {}) {
     this.session = SessionBuilder.create();
     this.destination = destination;
+    this.dest = destination?.ids?.at(-1) ?? null;
     const token = wbaasToken || SessionBuilder.readToken();
     if (token) {
       SessionBuilder.setAntibotToken(this.session, token);
@@ -65,13 +64,7 @@ class WBPrivateAPI {
       });
     }
 
-    const { catalog_type, catalog_value } = await this.getQueryMetadata(
-      keyword,
-      0,
-      false,
-      1,
-      retries
-    );
+    const { catalog_type, catalog_value } = await this.getQueryMetadata(keyword, 0, false, 1, retries);
     const catalogConfig = { keyword, catalog_type, catalog_value };
 
     let totalPages = this.getPageCount(totalProducts);
@@ -81,11 +74,7 @@ class WBPrivateAPI {
     }
 
     const threads = Array.from({ length: totalPages }, (_, i) => i + 1);
-    const parsedPages = await mapWithConcurrency(
-      threads,
-      5,
-      (thr) => this.getCatalogPage(catalogConfig, thr, retries, filters)
-    );
+    const parsedPages = await mapWithConcurrency(threads, 5, (thr) => this.getCatalogPage(catalogConfig, thr, retries, filters));
 
     const productOptions = { session: this.session, destination: this.destination };
     for (const page of parsedPages) {
@@ -109,18 +98,11 @@ class WBPrivateAPI {
    * @param {string} keyword - The keyword you want to search for.
    * @returns {array} - An array of shardKey, preset and preset value
    */
-  async getQueryMetadata(
-    keyword,
-    limit = 0,
-    _withProducts = false,
-    page = 1,
-    retries = 0,
-    suppressSpellcheck = true
-  ) {
+  async getQueryMetadata(keyword, limit = 0, _withProducts = false, page = 1, retries = 0, suppressSpellcheck = true) {
     const params = {
       appType: Constants.APPTYPES.DESKTOP,
       curr: Constants.CURRENCIES.RUB,
-      dest: this.destination.ids[0],
+      dest: this.dest,
       query: keyword,
       resultset: "catalog",
       sort: "popular",
@@ -142,10 +124,7 @@ class WBPrivateAPI {
       retryOptions: { retries },
     });
 
-    if (
-      "catalog_type" in (res.data?.metadata ?? {}) &&
-      "catalog_value" in (res.data?.metadata ?? {})
-    ) {
+    if ("catalog_type" in (res.data?.metadata ?? {}) && "catalog_value" in (res.data?.metadata ?? {})) {
       return { ...res.data.metadata, products: res.data.data?.products ?? res.data.products };
     }
 
@@ -166,22 +145,23 @@ class WBPrivateAPI {
    * @returns Total number of products
    */
   async searchTotalProducts(keyword) {
-    const res = await this.session.get(Constants.URLS.SEARCH.TOTALPRODUCTS, {
+    const res = await this.session.get(Constants.URLS.SEARCH.EXACTMATCH, {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
-        query: keyword,
         curr: Constants.CURRENCIES.RUB,
-        dest: this.destination.ids[0],
-        regions: this.destination.regions[0],
         locale: Constants.LOCALES.RU,
-        resultset: "filters",
+        lang: Constants.LOCALES.RU,
+        dest: this.dest,
+        query: keyword,
+        resultset: "catalog",
+        limit: 0,
       },
       headers: {
         "x-queryid": Utils.Search.getQueryIdForSearch(),
       },
     });
 
-    return res.data.data?.total || 0;
+    return res.data.total || 0;
   }
 
   /**
@@ -194,7 +174,7 @@ class WBPrivateAPI {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
-        dest: this.destination.ids[0],
+        dest: this.dest,
         supplier: supplierId,
         limit: 0,
       },
@@ -211,7 +191,7 @@ class WBPrivateAPI {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
-        dest: this.destination.ids[0],
+        dest: this.dest,
         brand: brandId,
         limit: 0,
       },
@@ -227,7 +207,7 @@ class WBPrivateAPI {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
-        dest: this.destination.ids[0],
+        dest: this.dest,
         lang: Constants.LOCALES.RU,
         page,
         sort: "popular",
@@ -246,7 +226,7 @@ class WBPrivateAPI {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
-        dest: this.destination.ids[0],
+        dest: this.dest,
         lang: Constants.LOCALES.RU,
         page,
         sort: "popular",
@@ -269,7 +249,7 @@ class WBPrivateAPI {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
-        dest: this.destination.ids[0],
+        dest: this.dest,
         lang: Constants.LOCALES.RU,
         query: keyword,
         resultset: "filters",
@@ -294,7 +274,7 @@ class WBPrivateAPI {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
-        dest: this.destination.ids[0],
+        dest: this.dest,
         query: catalogConfig.keyword.toLowerCase(),
         resultset: "catalog",
         sort: "popular",
@@ -303,9 +283,7 @@ class WBPrivateAPI {
       },
       headers: {
         "x-queryid": Utils.Search.getQueryIdForSearch(),
-        referrer:
-          "https://www.wildberries.ru/catalog/0/search.aspx?page=2&sort=popular&search=" +
-          encodeURI(catalogConfig.keyword.toLowerCase()),
+        referrer: "https://www.wildberries.ru/catalog/0/search.aspx?page=2&sort=popular&search=" + encodeURI(catalogConfig.keyword.toLowerCase()),
       },
     };
     if (page !== 1) {
@@ -387,7 +365,7 @@ class WBPrivateAPI {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         locale: Constants.LOCALES.RU,
-        dest: this.destination.ids[0],
+        dest: this.dest,
         nm: productIds.join(";"),
       },
       retryOptions: {
@@ -405,6 +383,7 @@ class WBPrivateAPI {
     return result.data;
   }
 
+
   /**
    * @returns Array of found products
    */
@@ -412,7 +391,7 @@ class WBPrivateAPI {
     const res = await this.session.get(Constants.URLS.SEARCH.LIST, {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
-        dest: this.destination.ids[0],
+        dest: this.dest,
         curr: Constants.CURRENCIES.RUB,
         lang: Constants.LOCALES.RU,
         nm: productIds.join(";"),
@@ -425,9 +404,7 @@ class WBPrivateAPI {
    * @returns Object with supplier info
    */
   async getSupplierInfo(sellerId) {
-    const res = await this.session.get(
-      format(Constants.URLS.SUPPLIER.INFO, sellerId)
-    );
+    const res = await this.session.get(format(Constants.URLS.SUPPLIER.INFO, sellerId));
     return res.data || {};
   }
 
@@ -435,14 +412,11 @@ class WBPrivateAPI {
    * @returns Object with supplier shipment info
    */
   async getSupplierShipment(sellerId) {
-    const res = await this.session.get(
-      format(Constants.URLS.SUPPLIER.SHIPMENT, sellerId),
-      {
-        headers: {
-          "x-client-name": "site",
-        },
-      }
-    );
+    const res = await this.session.get(format(Constants.URLS.SUPPLIER.SHIPMENT, sellerId), {
+      headers: {
+        "x-client-name": "site",
+      },
+    });
     return res.data || {};
   }
 
@@ -457,7 +431,7 @@ class WBPrivateAPI {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
-        dest: this.destination.ids[0],
+        dest: this.dest,
         lang: Constants.LOCALES.RU,
         page,
         sort: "popular",
@@ -503,11 +477,7 @@ class WBPrivateAPI {
     }
 
     const threads = Array.from({ length: totalPages }, (_, i) => i + 1);
-    const parsedPages = await mapWithConcurrency(
-      threads,
-      5,
-      (thr) => this.getSupplierCatalogPage(supplierId, thr, retries)
-    );
+    const parsedPages = await mapWithConcurrency(threads, 5, (thr) => this.getSupplierCatalogPage(supplierId, thr, retries));
 
     const productOptions = { session: this.session, destination: this.destination };
     for (const page of parsedPages) {
@@ -537,7 +507,7 @@ class WBPrivateAPI {
       params: {
         appType: Constants.APPTYPES.DESKTOP,
         curr: Constants.CURRENCIES.RUB,
-        dest: this.destination.ids[0],
+        dest: this.dest,
         lang: Constants.LOCALES.RU,
         page,
         sort: "popular",
@@ -550,10 +520,7 @@ class WBPrivateAPI {
   }
 
   getPageCount(totalProducts) {
-    return Math.min(
-      Math.ceil(totalProducts / Constants.PRODUCTS_PER_PAGE),
-      Constants.PAGES_PER_CATALOG
-    );
+    return Math.min(Math.ceil(totalProducts / Constants.PRODUCTS_PER_PAGE), Constants.PAGES_PER_CATALOG);
   }
 }
 

@@ -27,7 +27,7 @@ function sleep(ms) {
 // Домены из исходников WB (urls.json), для которых подтверждён proxy-путь /__internal/<subdomain>/
 const PROXY_DOMAINS = new Set([
   "catalog", "search", "card", "suggests",
-  "recom", "meta", "banners",
+  "recom", "meta", "banners", "user-geo-data",
   "u-catalog", "u-search", "u-card", "u-suggests",
   "u-recom", "search-tags", "u-search-tags",
 ]);
