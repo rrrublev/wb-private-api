@@ -1,8 +1,12 @@
 {
   "name": "@rrrublev/wb-private-api",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Node.js wrapper for Wildberries private API",
   "main": "index.js",
+  "files": [
+    "index.js",
+    "src/"
+  ],
   "scripts": {
     "test": "jest --selectProjects unit --verbose --detectOpenHandles",
     "test:integration": "jest --selectProjects integration --verbose --detectOpenHandles"
@@ -29,10 +33,11 @@
   "dependencies": {
     "qs": "^6.15.1",
     "string-format": "^2.0.0",
-    "undici": "^8.0.2"
+    "undici": "^8.2.0"
   },
   "devDependencies": {
     "jest": "^30.3.0",
+    "jsdom": "^29.1.1",
     "patchright": "^1.59.4"
   }
 }

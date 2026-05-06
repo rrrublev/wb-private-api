@@ -1,20 +1,16 @@
-# wb-private-api (форк от [glmn/wb-private-api](https://github.com/glmn/wb-private-api))
-**Доработано и оптимизировано** [rrrublev](https://github.com/rrrublev)
+# @rrrublev/wb-private-api
 
-## Оригинальный проект
-Этот модуль является форком репозитория [glmn/wb-private-api](https://github.com/glmn/wb-private-api) под лицензией ISC.  
-Оригинальный автор: Stanislav Gelman (@glmn)  
-Лицензия: ISC
+NodeJS модуль. Работает через приватное API Wildberries.
 
-![GitHub package.json version](https://img.shields.io/github/package-json/v/rrrublev/wb-private-api) ![GitHub last commit](https://img.shields.io/github/last-commit/rrrublev/wb-private-api) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/rrrublev/wb-private-api)
+![GitHub package.json version](https://img.shields.io/github/package-json/v/rrrublev/wb-private-api) ![npm](https://img.shields.io/npm/v/@rrrublev/wb-private-api) ![GitHub last commit](https://img.shields.io/github/last-commit/rrrublev/wb-private-api) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/rrrublev/wb-private-api)
 
-![npm](https://nodei.co/npm/wb-private-api.png)
+[![NPM](https://nodei.co/npm/@rrrublev/wb-private-api.png)](https://nodei.co/npm/@rrrublev/wb-private-api/)
 
-NodeJS модуль. Работает через приватное API Wildberries
+## Установка
 
-<p align="center"><h3>🍒 wb-private-api</h3></p>
-
-Установка: `npm i wb-private-api`
+```bash
+npm i @rrrublev/wb-private-api
+```
 
 ## Получение токена
 
@@ -24,7 +20,7 @@ NodeJS модуль. Работает через приватное API Wildberr
 
 1. Откройте [wildberries.ru](https://www.wildberries.ru) в браузере, дождитесь полной загрузки страницы
 2. Откройте DevTools (`F12`) → вкладка **Console**
-3. Вставьте и выполните содержимое файла [`scripts/get-wb-token.js`](scripts/get-wb-token.js)
+3. Вставьте и выполните содержимое файла [`scripts/get-wb-token.js`](https://github.com/rrrublev/wb-private-api/blob/main/scripts/get-wb-token.js)
 4. Скопируйте выведенную строку JSON и сохраните в файл `.wbaas_token` в корне проекта
 
 Токен действителен ~14 дней. По истечении повторите процедуру.
@@ -45,169 +41,180 @@ const wbapi = new WBPrivateAPI({
 wbapi.setToken("ВАШ_ТОКЕН");
 ```
 
-После установки рекомендую протестировать работоспособность
+## Примеры
 
-![image](https://github.com/glmn/wb-private-api/assets/1326151/e1d04808-1ba3-40cf-96bf-c6c5868ad4b8)
-
-Если все результаты положительные, значит библиотека полностью работоспособна и сервера WB отвечают верно. В случае, если каки-либо тесты отрицательные, прошу создать обращение https://github.com/glmn/wb-private-api/issues
-
-## Пример работы
-
-### Вывод данных о первом товаре из поисковой выдачи по ключевому слову
+<details>
+<summary>Вывод данных о первом товаре из поисковой выдачи</summary>
 
 ```js
-import { WBPrivateAPI, Constants } from "wb-private-api";
+import { WBPrivateAPI, Constants } from "@rrrublev/wb-private-api";
 
-const keyword = "HotWheels";
-
-/*
- * Select destination and init WBPrivateAPI with it
- * You can find more destionations in Constants.DESTINATIONS
- */
 const destination = Constants.DESTINATIONS.MOSCOW;
 const wbapi = new WBPrivateAPI({ destination });
 
-const initiate = async () => {
-  /*
-   * Search and Grab first 2 pages
-   * with specified keyword
-   */
-  const catalog = await wbapi.search(keyword, 2);
-  const product = catalog.products[0];
+const catalog = await wbapi.search("HotWheels", 2);
+const product = catalog.products[0];
 
-  /*
-   * Returning all Stocks with Warehouses Ids
-   * Then you can compare these Ids
-   * using Constants.WAREHOUSES
-   */
-  const stocks = await product.getStocks();
-
-  /* No comments here :P */
-  const feedbacks = await product.getFeedbacks();
-  const questions = await product.getQuestions();
-};
-
-initiate();
+const stocks = await product.getStocks();
+const feedbacks = await product.getFeedbacks();
+const { items: questions } = await product.getQuestions();
 ```
 
-### Вывод рекламодателей из поисковой выдачи по ключевому слову
+</details>
+
+<details>
+<summary>Вывод рекламодателей из поисковой выдачи</summary>
 
 ```js
-import { WBPrivateAPI, Constants } from "wb-private-api";
+import { WBPrivateAPI, Constants } from "@rrrublev/wb-private-api";
 
-const keyword = "Менструальные чаши";
+const wbapi = new WBPrivateAPI({ destination: Constants.DESTINATIONS.MOSCOW });
 
-/*
- * Select destination and init WBPrivateAPI with it
- * You can find more destionations in Constants.DESTINATIONS
- */
-const destination = Constants.DESTINATIONS.MOSCOW;
-const wbapi = new WBPrivateAPI({ destination });
+const { pages, prioritySubjects, adverts } = await wbapi.getSearchAds("Менструальные чаши");
 
-const initiate = async () => {
-  /*
-   * Search ads in search results
-   * with specified keyword
-   */
-  const { pages, prioritySubjects, adverts } = await wbapi.getSearchAds(
-    keyword
-  );
-
-  // Ads positions on each page
-  console.log(pages);
-
-  // Subjects ordered by priority
-  console.log(prioritySubjects);
-
-  // Adverts including CPM
-  console.log(adverts);
-};
-
-initiate();
+console.log(pages);           // позиции рекламы на страницах
+console.log(prioritySubjects); // темы по приоритету
+console.log(adverts);          // рекламодатели с CPM
 ```
 
-### Получение всех товаров поставщика с постраничным перебором
+</details>
+
+<details>
+<summary>Получение всех товаров поставщика</summary>
 
 ```js
-import { WBPrivateAPI, Constants } from "wb-private-api";
+import { WBPrivateAPI, Constants } from "@rrrublev/wb-private-api";
 
-const supplierId = 845298; // ID поставщика
+const wbapi = new WBPrivateAPI({ destination: Constants.DESTINATIONS.MOSCOW });
+const supplierId = 845298;
 
-/*
- * Select destination and init WBPrivateAPI with it
- */
-const destination = Constants.DESTINATIONS.MOSCOW;
-const wbapi = new WBPrivateAPI({ destination });
+const total = await wbapi.getSupplierProductCount(supplierId);
+console.log(`Всего товаров: ${total}`);
 
-const initiate = async () => {
-  /*
-   * Get total products count for supplier
-   */
-  const totalProducts = await wbapi.SupplierTotalProducts(supplierId);
-  console.log(`Общее количество товаров поставщика: ${totalProducts}`);
+// pageCount = 0 — все страницы (до 100), pageCount = 3 — только первые 3
+const catalog = await wbapi.getSupplierCatalogAll(supplierId, 3);
 
-  /*
-   * Get all supplier products with pagination
-   * pageCount = 0 means get all pages (up to 100 pages max)
-   * pageCount = 3 means get only first 3 pages
-   */
-  const catalog = await wbapi.getSupplierCatalogAll(supplierId, 3);
-  
-  console.log(`Получено товаров: ${catalog.products.length}`);
-  console.log(`Всего страниц: ${catalog.pages}`);
-  console.log(`Общее количество товаров: ${catalog.totalProducts}`);
-
-  // Display first 5 products
-  catalog.products.slice(0, 5).forEach((product, index) => {
-    console.log(`${index + 1}. ${product.name} - ${product.price?.afterSale || 'N/A'} руб.`);
-  });
-};
-
-initiate();
+console.log(`Получено: ${catalog.products.length}`);
+console.log(`Страниц: ${catalog.pages}`);
 ```
 
-## `WBPrivateAPI` методы
+</details>
 
-`.search(keyword, pageCount, retries = 0, filters = [])` - Поиск всех товаров по Ключевому слову `keyword`. `pageCount` отвечает за кол-во необходимых страниц для прохода. Если `pageCount = 0`, то будет взяты все страницы или `100`, если их больше. `retries` отвечает за количество попыток выполнить запрос, если в ответ был получен статус 5хх или 429. `filters` это массив с объектами вида `[{type: 'fbrand' value: 11399 }]`, необходим для фильтрации поисковой выдачи по брендам, поставщикам, цене и т.д. Метод возвращает объект `WBCatalog`
+## API
 
-`.getSearchAds(keyword)` - Поиск рекламодателей (в разделе Поиск) по Ключевому слову
+### `WBPrivateAPI`
 
-`.getCarouselAds(keyword)` - Поиск рекламодателей внутри карточке в каруселе "Рекламный блок"
+```js
+new WBPrivateAPI({ destination, wbaasToken? })
+```
 
-`.keyHint(query)` - Возвращает список подсказок из поиска WB по фразе `query`
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `destination` | `object` | Направление доставки из `Constants.DESTINATIONS` |
+| `wbaasToken` | `string` | Токен. Если не передан — читается из `.wbaas_token` |
 
-`.searchSimilarByNm(productId)` - Возвращает список похожих товаров (как в разделе "Похожие товары" внутри карточки на WB)
+#### Поиск
 
-`.getPromos()` - Возвращает массив текущих промо-акций на WB
+| Метод | Возвращает | Описание |
+|-------|-----------|----------|
+| `search(keyword, pageCount?, retries?, filters?)` | `WBCatalog` | Поиск товаров по ключевому слову. `pageCount = 0` — все страницы (до 100) |
+| `getSearchAds(keyword)` | `object` | Рекламодатели в поисковой выдаче |
+| `getCarouselAds(productId)` | `array` | Реклама в карусели внутри карточки товара |
+| `keyHint(query)` | `array` | Поисковые подсказки WB |
+| `searchSimilarByNm(productId)` | `object` | Похожие товары (как в разделе «Похожие товары» на WB) |
 
-`.getListOfProducts(productIds)` - Возвращает массив найденных артикулов на WB с деталями (Не оборачивается в WBProduct)
+#### Товары
 
-`.SupplierTotalProducts(supplierId)` - Возвращает общее количество товаров поставщика
+| Метод | Возвращает | Описание |
+|-------|-----------|----------|
+| `getListOfProducts(productIds)` | `array` | Данные по массиву артикулов |
+| `getDeliveryDataByNms(productIds, retries?)` | `array` | Данные о доставке по массиву артикулов |
+| `getPromos()` | `array` | Текущие промо-акции на WB |
 
-`.getSupplierCatalogAll(supplierId, pageCount = 0, retries = 0)` - Получает все товары поставщика с постраничным перебором. `pageCount` отвечает за кол-во необходимых страниц для прохода. Если `pageCount = 0`, то будет взяты все страницы или `100`, если их больше. `retries` отвечает за количество попыток выполнить запрос, если в ответ был получен статус 5хх или 429. Метод возвращает объект `WBCatalog`
+#### Поставщики
 
-`.getSupplierCatalogPage(supplierId, page = 1, retries = 0)` - Получает товары поставщика с указанной страницы. Используется внутри `getSupplierCatalogAll` для постраничного перебора
+| Метод | Возвращает | Описание |
+|-------|-----------|----------|
+| `getSupplierInfo(sellerId)` | `object` | Информация о поставщике |
+| `getSupplierShipment(sellerId)` | `object` | Данные об отгрузке поставщика |
+| `getSupplierProductCount(supplierId)` | `number` | Общее количество товаров поставщика |
+| `getSupplierCatalogAll(supplierId, pageCount?, retries?)` | `WBCatalog` | Все товары поставщика с постраничным перебором |
+| `getSupplierCatalogPage(supplierId, page?, retries?)` | `array` | Товары поставщика с указанной страницы |
 
-## `WBCatalog` методы
+#### Бренды
 
-`.page(number)` - Возвращает массив товаров с заданной страницы (массив состоит из объектов `WBProduct`)
+| Метод | Возвращает | Описание |
+|-------|-----------|----------|
+| `getBrandProductCount(brandId)` | `number` | Общее количество товаров бренда |
+| `getBrandCatalogPage(brandId, page?, retries?)` | `array` | Товары бренда с указанной страницы |
 
-`.getPosition(productId)` - Возвращает номер позиции по заданному SKU. Если такого SKU в выдаче нет, то вернёт `-1`
+#### Токен
 
-## `WBProduct` методы
+| Метод | Описание |
+|-------|----------|
+| `setToken(token)` | Устанавливает токен `x_wbaas_token` |
 
-`.create(id)` - Статичный метод. Использовать в виде `WBProduct.create(id)`. Где `id` = `Артикул товара`. Метод асинхронный, поэтому перед вызовом используйте `await`. Вернет объект `WBProduct`
+---
 
-`.totalStocks` - Вернёт сумму остатков товара со всех складов (!) предварительно вызвать `.getStocks()`)
+### `WBCatalog`
 
-`.getStocks()` - Присвоет (и вернет) свойству `stocks` массив с данными об остатках на складе
+Объект, возвращаемый методами `search()` и `getSupplierCatalogAll()`.
 
-`.getPromo()` - Присвоет (и вернет) свойству `promo` объект с данными об участии в промо-акции
+#### Свойства
 
-`.getFeedbacks()` - Присвоет (и вернет) свойству `feedbacks` массив со всеми отзывами `WBFeedback` о товаре
+| Свойство | Тип | Описание |
+|----------|-----|----------|
+| `products` | `WBProduct[]` | Массив товаров |
+| `pages` | `number` | Количество страниц |
+| `totalProducts` | `number` | Общее количество товаров в выдаче |
 
-`.getQuestions()` - Присвоет (и вернет) свойству `questions` массив со всеми вопросами `WBQuestion` о товаре
+#### Методы
 
-## `WBFeedback` методы
+| Метод | Возвращает | Описание |
+|-------|-----------|----------|
+| `page(number)` | `WBProduct[]` | Товары с заданной страницы (нумерация с 1) |
+| `getPosition(productId)` | `number` | Позиция товара по артикулу. `-1` если не найден |
 
-`.getPhotos(size='min')` - Вернет ссылки на все фотографии в текущем отзыве. `size` по умолчанию = `min`. Заменить на `full` если необходим большой размер
+---
+
+### `WBProduct`
+
+#### Создание
+
+```js
+// Из поисковой выдачи — WBProduct создаётся автоматически внутри WBCatalog
+const product = catalog.products[0];
+
+// По артикулу напрямую
+const product = await WBProduct.create(12345678);
+```
+
+#### Свойства
+
+| Свойство | Тип | Описание |
+|----------|-----|----------|
+| `totalStocks` | `number` | Суммарный остаток по всем складам (требует предварительного вызова `getStocks()`) |
+| `currentPrice` | `number` | Текущая цена товара |
+
+#### Методы
+
+| Метод | Возвращает | Описание |
+|-------|-----------|----------|
+| `getStocks()` | `array` | Остатки на складах |
+| `getPromo()` | `object` | Участие в промо-акции |
+| `getFeedbacks()` | `WBFeedback[]` | Все отзывы о товаре |
+| `getQuestions()` | `object` | Все вопросы о товаре. Возвращает `{ items, totalQuestions, fetchedQuestions, truncated }` |
+| `getVideo(quality?)` | `object` | Видео товара. `quality` по умолчанию `"1440p"`. Возвращает `{ hasVideo, playlistUrl, hls, mp4Preview, duration, chunks }` |
+
+---
+
+### `WBFeedback`
+
+| Метод | Возвращает | Описание |
+|-------|-----------|----------|
+| `getPhotos(size?)` | `string[]` | Ссылки на фото в отзыве. `size`: `"min"` (по умолчанию) или `"full"` |
+
+## Credits
+
+Based on [glmn/wb-private-api](https://github.com/glmn/wb-private-api) by Stanislav Gelman.  
+Licensed under ISC.
