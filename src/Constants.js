@@ -43,8 +43,6 @@ module.exports = {
       EXACTMATCH: "https://search.wb.ru/exactmatch/ru/common/v18/search",
       EXACTMATCH_INTERNAL: "https://www.wildberries.ru/__internal/search/exactmatch/ru/common/v18/search",
       CATALOG: "https://wbxcatalog-ru.wildberries.ru/{}/catalog",
-      ADS: "https://catalog-ads.wildberries.ru/api/v5/search",
-      CAROUSEL_ADS: "https://carousel-ads.wildberries.ru/api/v4/carousel",
       HINT: "https://suggests.wb.ru/suggests/api/v7/hint",
       HINT_INTERNAL: "https://www.wildberries.ru/__internal/suggests/suggests/api/v7/hint",
       LIST: "https://card.wb.ru/cards/v4/list",

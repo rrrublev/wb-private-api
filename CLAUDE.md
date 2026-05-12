@@ -52,7 +52,7 @@ WBPrivateAPI (src/WBPrivateAPI.js)
 
 - `src/Constants.js` — единственный источник истины для URL, складов (`WAREHOUSES`), направлений доставки (`DESTINATIONS`), типов приложений, валют, локалей. При добавлении нового URL — добавлять сюда.
 - `src/SessionBuilder.js` — фабрика HTTP-клиента на `undici`. Экспоненциальный backoff, retry, общие заголовки. Не создавать `fetch`/HTTP-клиенты вне него. `SessionBuilder.setAntibotToken(session, token)` устанавливает токен в Cookie.
-- `src/WBPrivateAPI.js` — основной класс. Конструктор `{ destination, wbaasToken }` — токен можно передать явно или он читается из `.wbaas_token`. При наличии токена переключается на `__internal` URL. Методы: `search()`, `getSearchAds()`, `getCarouselAds()`, `keyHint()`, `searchSimilarByNm()`, `getDeliveryDataByNms()`, `getPromos()`, `getListOfProducts()`, `getSupplierInfo()`, `getSupplierShipment()`, `getSupplierCatalog()`, `getSupplierCatalogAll()`, `getSupplierCatalogPage()`, `SupplierTotalProducts()`, `setToken()`.
+- `src/WBPrivateAPI.js` — основной класс. Конструктор `{ destination, wbaasToken }` — токен можно передать явно или он читается из `.wbaas_token`. При наличии токена переключается на `__internal` URL. Методы: `search()`, `keyHint()`, `searchSimilarByNm()`, `getDeliveryDataByNms()`, `getPromos()`, `getListOfProducts()`, `getSupplierInfo()`, `getSupplierShipment()`, `getSupplierCatalog()`, `getSupplierCatalogAll()`, `getSupplierCatalogPage()`, `getSupplierProductCount()`, `setToken()`.
 - `src/Utils.js` — вспомогательные функции: построение URL изображений (`Utils.Card.imageURL()`), вычисление номера корзины, генерация query ID.
 
 **Инициализация:**

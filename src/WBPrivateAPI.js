@@ -301,29 +301,6 @@ class WBPrivateAPI {
   }
 
   /**
-   * Search for adverts and their ads form specified keyword
-   * @param {string} keyword - the search query
-   * @returns {object} - An object with adverts and their ads
-   */
-  async getSearchAds(keyword) {
-    const options = { params: { keyword } };
-    const res = await this.session.get(Constants.URLS.SEARCH.ADS, options);
-    return res.data;
-  }
-
-  /**
-   * Search for carousel ads inside product card
-   * @param {number} productId - product id
-   * @returns {array} - An array with ads
-   */
-  async getCarouselAds(productId) {
-    const res = await this.session.get(Constants.URLS.SEARCH.CAROUSEL_ADS, {
-      params: { nm: productId },
-    });
-    return res.data;
-  }
-
-  /**
    * It takes a query string and returns a list of suggestions that match the query
    * @param {string} query - the search query
    * @returns {array} - An array of objects.

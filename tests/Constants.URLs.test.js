@@ -331,35 +331,6 @@ describe("Тестирование URL из Constants.js", () => {
       console.log(`✅ SEARCH.SIMILAR_BY_NM: ${url} (${result.status})`);
     }, 15000);
 
-    // catalog-ads.wildberries.ru и carousel-ads.wildberries.ru недоступны с данного IP
-    // (ENOTFOUND — геоблок или хосты выведены из эксплуатации).
-    // Тесты проверяют только что URL прописан корректно в Constants.
-    test("Проверка URL рекламы в поиске", async () => {
-      const url = Constants.URLS.SEARCH.ADS;
-      expect(url).toMatch(/^https:\/\//);
-      let result;
-      try {
-        result = await httpGet(url, { params: { keyword: TEST_DATA.keywords[0] } });
-        expect([200, 400, 403, 404]).toContain(result.status);
-        console.log(`✅ SEARCH.ADS: ${url} (${result.status})`);
-      } catch (error) {
-        console.log(`⚠️  SEARCH.ADS недоступен (сеть): ${error.message}`);
-      }
-    }, 15000);
-
-    test("Проверка URL карусельной рекламы", async () => {
-      const url = Constants.URLS.SEARCH.CAROUSEL_ADS;
-      expect(url).toMatch(/^https:\/\//);
-      let result;
-      try {
-        result = await httpGet(url, { params: { nm: TEST_DATA.products.valid[0] } });
-        expect([200, 400, 403, 404]).toContain(result.status);
-        console.log(`✅ SEARCH.CAROUSEL_ADS: ${url} (${result.status})`);
-      } catch (error) {
-        console.log(`⚠️  SEARCH.CAROUSEL_ADS недоступен (сеть): ${error.message}`);
-      }
-    }, 15000);
-
     test("Проверка URL подсказок поиска", async () => {
       const url = Constants.URLS.SEARCH.HINT;
       let result;

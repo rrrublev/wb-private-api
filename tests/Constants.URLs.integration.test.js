@@ -176,8 +176,6 @@ describe("Интеграционное тестирование URL с мето�
         "SUPPLIER.CATALOG": { url: Constants.URLS.SUPPLIER.CATALOG, expectedVersion: "v4" },
         "PRODUCT.DETAILS": { url: Constants.URLS.PRODUCT.DETAILS, expectedVersion: "v4" },
         "PRODUCT.FEEDBACKS": { url: Constants.URLS.PRODUCT.FEEDBACKS, expectedVersion: "v2" },
-        "SEARCH.ADS": { url: Constants.URLS.SEARCH.ADS, expectedVersion: "v5" },
-        "SEARCH.CAROUSEL_ADS": { url: Constants.URLS.SEARCH.CAROUSEL_ADS, expectedVersion: "v4" },
         "SEARCH.HINT": { url: Constants.URLS.SEARCH.HINT, expectedVersion: "v7" }
       };
 
@@ -198,8 +196,6 @@ describe("Интеграционное тестирование URL с мето�
           "SUPPLIER.SHIPMENT",
           "SEARCH.EXACTMATCH_INTERNAL",
           "SEARCH.CATALOG",
-          "SEARCH.ADS",
-          "SEARCH.CAROUSEL_ADS",
           "SEARCH.SIMILAR_BY_NM"
         ],
         "search.wb.ru": ["SEARCH.EXACTMATCH"],

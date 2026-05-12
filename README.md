@@ -4,7 +4,7 @@ NodeJS модуль. Работает через приватное API Wildberr
 
 ![GitHub package.json version](https://img.shields.io/github/package-json/v/rrrublev/wb-private-api) ![npm](https://img.shields.io/npm/v/@rrrublev/wb-private-api) ![GitHub last commit](https://img.shields.io/github/last-commit/rrrublev/wb-private-api) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/rrrublev/wb-private-api)
 
-[![NPM](https://nodei.co/npm/@rrrublev/wb-private-api.png)](https://nodei.co/npm/@rrrublev/wb-private-api/)
+[![NPM](https://nodei.co/npm/@rrrublev/wb-private-api.png)](https://www.npmjs.com/package/@rrrublev/wb-private-api)
 
 ## Установка
 
@@ -63,23 +63,6 @@ const { items: questions } = await product.getQuestions();
 </details>
 
 <details>
-<summary>Вывод рекламодателей из поисковой выдачи</summary>
-
-```js
-import { WBPrivateAPI, Constants } from "@rrrublev/wb-private-api";
-
-const wbapi = new WBPrivateAPI({ destination: Constants.DESTINATIONS.MOSCOW });
-
-const { pages, prioritySubjects, adverts } = await wbapi.getSearchAds("Менструальные чаши");
-
-console.log(pages);           // позиции рекламы на страницах
-console.log(prioritySubjects); // темы по приоритету
-console.log(adverts);          // рекламодатели с CPM
-```
-
-</details>
-
-<details>
 <summary>Получение всех товаров поставщика</summary>
 
 ```js
@@ -118,8 +101,6 @@ new WBPrivateAPI({ destination, wbaasToken? })
 | Метод | Возвращает | Описание |
 |-------|-----------|----------|
 | `search(keyword, pageCount?, retries?, filters?)` | `WBCatalog` | Поиск товаров по ключевому слову. `pageCount = 0` — все страницы (до 100) |
-| `getSearchAds(keyword)` | `object` | Рекламодатели в поисковой выдаче |
-| `getCarouselAds(productId)` | `array` | Реклама в карусели внутри карточки товара |
 | `keyHint(query)` | `array` | Поисковые подсказки WB |
 | `searchSimilarByNm(productId)` | `object` | Похожие товары (как в разделе «Похожие товары» на WB) |
 
