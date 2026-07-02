@@ -1,10 +1,35 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { fetch, Agent } = require("undici");
 const { stringify } = require("qs");
 const Constants = require("./Constants");
 
 const TOKEN_FILE = path.resolve(__dirname, "../.wbaas_token");
+const DEVICE_ID_FILE = path.resolve(__dirname, "../.deviceid");
+
+/**
+ * Возвращает стабильный deviceid, кешируя его в файле `.deviceid`.
+ *
+ * Воспроизводит алгоритм фронтенда WB (sessionService.getSession):
+ * `site_` + UUID v4 без дефисов. На сайте значение хранится в
+ * localStorage["wbx__sessionID"]; здесь — в файле, чтобы id был
+ * постоянным между запусками.
+ *
+ * @returns {string}
+ */
+function getDeviceId() {
+  try {
+    const cached = fs.readFileSync(DEVICE_ID_FILE, "utf8").trim();
+    if (/^site_[0-9a-f]{32}$/.test(cached)) return cached;
+  } catch {}
+
+  const deviceId = `site_${crypto.randomUUID().replace(/-/g, "")}`;
+  try {
+    fs.writeFileSync(DEVICE_ID_FILE, deviceId, "utf8");
+  } catch {}
+  return deviceId;
+}
 
 const noopLogger = {
   debug() {},
@@ -70,9 +95,14 @@ class Session {
       : "";
     const fullUrl = resolved + queryString;
 
+    // DeviceId браузер шлёт только для запросов к www.wildberries.ru,
+    // куда и проксируются __internal-эндпойнты. Признак — URL был переписан.
+    const isInternal = resolved !== url;
+
     const mergedHeaders = {
       ...this._config.headers,
       ...this.defaults.headers.common,
+      ...(isInternal ? { deviceid: getDeviceId() } : {}),
       ...headers,
     };
 
