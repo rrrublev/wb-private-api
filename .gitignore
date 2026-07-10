@@ -110,6 +110,7 @@ dist
 .claude
 .mimocode
 
+# Dev
 dev
 .vscode
 capture

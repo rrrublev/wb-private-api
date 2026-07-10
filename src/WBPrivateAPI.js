@@ -23,8 +23,8 @@ async function mapWithConcurrency(items, limit, mapper) {
 
 class WBPrivateAPI {
   /* Creating a new instance of the class WBPrivateAPI. */
-  constructor({ destination, wbaasToken } = {}) {
-    this.session = SessionBuilder.create();
+  constructor({ destination, wbaasToken, sessionOptions } = {}) {
+    this.session = SessionBuilder.create(sessionOptions);
     this.destination = destination;
     this.dest = destination?.ids?.at(-1) ?? null;
     const token = wbaasToken || SessionBuilder.readToken();
@@ -297,7 +297,15 @@ class WBPrivateAPI {
     if (res.data?.metadata?.catalog_value === "preset=11111111") {
       throw new Error("BAD CATALOG VALUE - 11111111");
     }
-    return res.data.data?.products ?? res.data.products;
+    const products = res.data.data?.products ?? res.data.products;
+    if (!Array.isArray(products) && (res.data?.error || res.data?.code)) {
+      const message = res.data.error || "unexpected WB catalog response";
+      const error = new Error(`WB catalog request failed: ${message}`);
+      error.status = res.status;
+      error.response = { status: res.status, data: res.data };
+      throw error;
+    }
+    return products;
   }
 
   /**

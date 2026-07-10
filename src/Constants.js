@@ -1,8 +1,103 @@
+const HTTP_STATUS = {
+  SUCCESS: 200,
+  CREATED: 201,
+  ACCEPTED: 202,
+  NO_CONTENT: 204,
+  ALREADY_REPORTED: 208,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  METHOD_NOT_ALLOWED: 405,
+  CONFLICT: 409,
+  TOO_MANY_REQUESTS: 429,
+  INVALID_TOKEN: 498,
+  INTERNAL_SERVER_ERROR: 500,
+  NOT_IMPLEMENTED: 501,
+  SERVICE_UNAVAILABLE: 503,
+};
+
+const WB_ERRORS = {
+  BAD_REQUEST: {
+    status: HTTP_STATUS.BAD_REQUEST,
+    code: "BAD_REQUEST",
+    message: "BAD_REQUEST",
+    name: "WBBadRequestError",
+  },
+  UNAUTHORIZED: {
+    status: HTTP_STATUS.UNAUTHORIZED,
+    code: "UNAUTHORIZED",
+    message: "UNAUTHORIZED",
+    name: "WBUnauthorizedError",
+  },
+  FORBIDDEN: {
+    status: HTTP_STATUS.FORBIDDEN,
+    code: "FORBIDDEN",
+    message: "FORBIDDEN",
+    name: "WBForbiddenError",
+  },
+  NOT_FOUND: {
+    status: HTTP_STATUS.NOT_FOUND,
+    code: "NOT_FOUND",
+    message: "NOT_FOUND",
+    name: "WBNotFoundError",
+  },
+  METHOD_NOT_ALLOWED: {
+    status: HTTP_STATUS.METHOD_NOT_ALLOWED,
+    code: "METHOD_NOT_ALLOWED",
+    message: "METHOD_NOT_ALLOWED",
+    name: "WBMethodNotAllowedError",
+  },
+  CONFLICT: {
+    status: HTTP_STATUS.CONFLICT,
+    code: "CONFLICT",
+    message: "CONFLICT",
+    name: "WBConflictError",
+  },
+  TOO_MANY_REQUESTS: {
+    status: HTTP_STATUS.TOO_MANY_REQUESTS,
+    code: "TOO_MANY_REQUESTS",
+    message: "TOO_MANY_REQUESTS",
+    name: "WBRateLimitError",
+  },
+  INVALID_TOKEN: {
+    status: HTTP_STATUS.INVALID_TOKEN,
+    code: "INVALID_TOKEN",
+    message: "INVALID_TOKEN",
+    name: "WBInvalidTokenError",
+  },
+  INTERNAL_SERVER_ERROR: {
+    status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    code: "INTERNAL_SERVER_ERROR",
+    message: "INTERNAL_SERVER_ERROR",
+    name: "WBServerError",
+  },
+  NOT_IMPLEMENTED: {
+    status: HTTP_STATUS.NOT_IMPLEMENTED,
+    code: "NOT_IMPLEMENTED",
+    message: "NOT_IMPLEMENTED",
+    name: "WBNotImplementedError",
+  },
+  SERVICE_UNAVAILABLE: {
+    status: HTTP_STATUS.SERVICE_UNAVAILABLE,
+    code: "SERVICE_UNAVAILABLE",
+    message: "SERVICE_UNAVAILABLE",
+    name: "WBServiceUnavailableError",
+  },
+};
+
+const WB_ERRORS_BY_STATUS = Object.fromEntries(
+  Object.values(WB_ERRORS).map((error) => [error.status, error])
+);
+
 module.exports = {
   PRODUCTS_PER_PAGE: 100,
   PAGES_PER_CATALOG: 100,
   FEEDBACKS_PER_PAGE: 20,
   QUESTIONS_PER_PAGE: 30,
+  HTTP_STATUS,
+  WB_ERRORS,
+  WB_ERRORS_BY_STATUS,
   URLS: {
     MAIN_MENU: "https://static-basket-01.wbbasket.ru/vol0/data/main-menu-ru-ru-v3.json",
     BRAND: {

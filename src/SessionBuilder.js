@@ -38,15 +38,55 @@ const noopLogger = {
   error() {},
 };
 
-function createHttpError(status, url, method) {
-  const err = new Error(`Request failed with status code ${status}`);
-  err.response = { status };
+function defaultRequestLogger({ method, url, body }) {
+  const suffix = body === undefined ? "" : `  ${JSON.stringify(body)}`;
+  console.log(`  -> ${method.padEnd(4)} ${url}${suffix}`);
+}
+
+function createHttpError(status, url, method, data) {
+  const wbError = Constants.WB_ERRORS_BY_STATUS[status];
+  const message = wbError
+    ? `${wbError.message}: ${status}`
+    : `Request failed with status code ${status}`;
+  const err = new Error(message);
+  if (wbError) {
+    err.name = wbError.name;
+    err.code = wbError.code;
+  }
+  err.response = data === undefined ? { status } : { status, data };
   err.config = { url, method };
   return err;
 }
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function defaultRetryCondition(ctx) {
+  return ctx.status === Constants.HTTP_STATUS.TOO_MANY_REQUESTS ||
+    ctx.status >= Constants.HTTP_STATUS.INTERNAL_SERVER_ERROR ||
+    Boolean(ctx.error);
+}
+
+async function readResponseData(response, responseType = "auto") {
+  if (responseType === "text") {
+    return response.text();
+  }
+  if (responseType === "json") {
+    return response.json();
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  const text = await response.text();
+  const trimmed = text.trimStart();
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try { return JSON.parse(text); } catch { return text; }
+  }
+  return text;
 }
 
 // Домены из исходников WB (urls.json), для которых подтверждён proxy-путь /__internal/<subdomain>/
@@ -71,6 +111,7 @@ class Session {
   constructor(config) {
     this._config = config;
     this._logger = config.logger || noopLogger;
+    this._requestLogger = config.requestLogger || null;
     this._agent = new Agent({
       keepAliveTimeout: 30000,
       keepAliveMaxTimeout: 30000,
@@ -85,15 +126,26 @@ class Session {
     return !!this.defaults.headers.common["Cookie"];
   }
 
+  resolveUrl(url) {
+    return this._hasToken() ? toProxyUrl(url) : url;
+  }
+
+  _logRequest(method, url, body) {
+    if (!this._requestLogger) return;
+    const event = body === undefined ? { method, url } : { method, url, body };
+    this._requestLogger(event);
+  }
+
   /** @returns {Promise<{status: number, data: any}>} */
   async get(url, options = {}) {
     const { params = {}, headers = {}, retryOptions, responseType = "auto" } = options;
 
-    const resolved = this._hasToken() ? toProxyUrl(url) : url;
+    const resolved = this.resolveUrl(url);
     const queryString = Object.keys(params).length
       ? "?" + stringify(params, { arrayFormat: "comma", encode: false })
       : "";
     const fullUrl = resolved + queryString;
+    this._logRequest("GET", fullUrl);
 
     // DeviceId браузер шлёт только для запросов к www.wildberries.ru,
     // куда и проксируются __internal-эндпойнты. Признак — URL был переписан.
@@ -109,7 +161,7 @@ class Session {
     const retries = retryOptions?.retries ?? this._config.retries;
     const retryCondition =
       retryOptions?.retryCondition ??
-      ((ctx) => ctx.status === 429 || ctx.status >= 500 || Boolean(ctx.error));
+      defaultRetryCondition;
 
     let lastError;
     for (let attempt = 0; attempt <= retries; attempt++) {
@@ -146,25 +198,7 @@ class Session {
       }
 
       if (response.status >= 200 && response.status < 300) {
-        let data;
-        if (responseType === "text") {
-          data = await response.text();
-        } else if (responseType === "json") {
-          data = await response.json();
-        } else {
-          const contentType = response.headers.get("content-type") || "";
-          if (contentType.includes("application/json")) {
-            data = await response.json();
-          } else {
-            const text = await response.text();
-            const trimmed = text.trimStart();
-            if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-              try { data = JSON.parse(text); } catch { data = text; }
-            } else {
-              data = text;
-            }
-          }
-        }
+        const data = await readResponseData(response, responseType);
         return { status: response.status, data };
       }
 
@@ -172,13 +206,15 @@ class Session {
         attempt < retries &&
         retryCondition({ status: response.status, error: null, attempt, url, method: "get" });
 
+      const data = await readResponseData(response, responseType);
+
       if (shouldRetry) {
-        lastError = createHttpError(response.status, url, "get");
+        lastError = createHttpError(response.status, url, "get", data);
         continue;
       }
 
-      const err = createHttpError(response.status, url, "get");
-      this._logger.error("Request failed", { url, status: response.status });
+      const err = createHttpError(response.status, url, "get", data);
+      this._logger.error("Request failed", { url, status: response.status, data });
       throw err;
     }
 
@@ -191,6 +227,7 @@ class Session {
   /** @returns {Promise<{status: number, data: any}>} */
   async post(url, body, options = {}) {
     const { headers = {}, retryOptions } = options;
+    this._logRequest("POST", url, body);
 
     const mergedHeaders = {
       ...this._config.headers,
@@ -202,7 +239,7 @@ class Session {
     const retries = retryOptions?.retries ?? this._config.retries;
     const retryCondition =
       retryOptions?.retryCondition ??
-      ((ctx) => ctx.status === 429 || ctx.status >= 500 || Boolean(ctx.error));
+      defaultRetryCondition;
 
     let lastError;
     for (let attempt = 0; attempt <= retries; attempt++) {
@@ -234,19 +271,7 @@ class Session {
       }
 
       if (response.status >= 200 && response.status < 300) {
-        let data;
-        const contentType = response.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
-          data = await response.json();
-        } else {
-          const text = await response.text();
-          const trimmed = text.trimStart();
-          if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-            try { data = JSON.parse(text); } catch { data = text; }
-          } else {
-            data = text;
-          }
-        }
+        const data = await readResponseData(response);
         return { status: response.status, data };
       }
 
@@ -254,13 +279,15 @@ class Session {
         attempt < retries &&
         retryCondition({ status: response.status, error: null, attempt, url, method: "post" });
 
+      const data = await readResponseData(response);
+
       if (shouldRetry) {
-        lastError = createHttpError(response.status, url, "post");
+        lastError = createHttpError(response.status, url, "post", data);
         continue;
       }
 
-      const err = createHttpError(response.status, url, "post");
-      this._logger.error("Request failed", { url, status: response.status });
+      const err = createHttpError(response.status, url, "post", data);
+      this._logger.error("Request failed", { url, status: response.status, data });
       throw err;
     }
 
@@ -278,6 +305,7 @@ class SessionBuilder {
       retries: options.retries ?? 3,
       maxSockets: options.maxSockets || 10,
       logger: options.logger || noopLogger,
+      requestLogger: options.requestLogger || (options.logRequests ? defaultRequestLogger : null),
       headers: {
         "User-Agent": options.userAgent || Constants.USERAGENT,
         "Accept-Encoding": "gzip, deflate, br",

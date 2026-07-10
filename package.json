@@ -1,6 +1,6 @@
 {
   "name": "@rrrublev/wb-private-api",
-  "version": "0.8.7",
+  "version": "0.8.8",
   "description": "Node.js wrapper for Wildberries private API",
   "main": "index.js",
   "files": [
