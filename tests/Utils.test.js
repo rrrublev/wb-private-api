@@ -25,4 +25,12 @@ describe("Проверка утилит Card", () => {
       expect(basket).toBe(expected[index]);
     }
   });
+  test("Проверка новых корзин mediabasket_route_map", () => {
+    const skus = [1498200000, 1882100000];
+    const expected = ["48", "52"];
+    for (const [index, sku] of skus.entries()) {
+      const basket = Utils.Card.getBasketNumber(sku);
+      expect(basket).toBe(expected[index]);
+    }
+  });
 });

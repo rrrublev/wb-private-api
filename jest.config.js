@@ -7,6 +7,7 @@ module.exports = {
       testMatch: [
         "**/tests/Constants.URLs.utils.test.js",
         "**/tests/SessionBuilder.test.js",
+        "**/tests/update-upstreams-routes.test.js",
         "**/tests/Utils.test.js",
         "**/tests/WBPrivateAPI.unit.test.js",
         "**/tests/WBCatalog.unit.test.js",

@@ -1,6 +1,6 @@
 {
   "name": "@rrrublev/wb-private-api",
-  "version": "0.8.8",
+  "version": "0.8.9",
   "description": "Node.js wrapper for Wildberries private API",
   "main": "index.js",
   "files": [
@@ -19,7 +19,9 @@
     "wildberries",
     "marketplace",
     "api",
-    "nodejs"
+    "nodejs",
+    "wildberries-api",
+    "wildberries-parser"
   ],
   "author": "rublev (https://github.com/rrrublev)",
   "contributors": [

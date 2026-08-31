@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -13,16 +14,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
-      - run: npm install
+      # npm 11.5.1+ is required for npm trusted publishing via OIDC.
+      - run: npm install --global npm@11.5.1
+      - run: npm --version
+      - run: npm ci
+      - run: npm test
 
       - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Get release notes
         id: notes
