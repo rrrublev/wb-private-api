@@ -6,14 +6,29 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+
+concurrency:
+  group: update-upstream-routes
+  cancel-in-progress: false
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.ROUTES_APP_CLIENT_ID }}
+          private-key: ${{ secrets.ROUTES_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - uses: actions/checkout@v7
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -21,27 +36,107 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: node scripts/update-upstreams-routes.js
 
-      - name: Create or update pull request
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Update and validate route snapshot
+        id: routes
+        shell: bash
         run: |
+          node scripts/update-upstreams-routes.js
+
           if git diff --quiet -- src/UpstreamRoutes.js; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          branch="automation/update-upstreams-routes"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch --create "$branch"
-          git add src/UpstreamRoutes.js
-          git commit -m "chore: update upstream route snapshot"
-          git push --force origin "HEAD:$branch"
-
-          pr_number="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')"
-          if [ -n "$pr_number" ]; then
-            gh pr edit "$pr_number" --title "chore: update upstream route snapshot" --body "Automated update from WB upstreams."
-          else
-            gh pr create --base "${{ github.event.repository.default_branch }}" --head "$branch" --title "chore: update upstream route snapshot" --body "Automated update from WB upstreams."
+          unexpected_files="$(git diff --name-only | grep -Ev '^src/UpstreamRoutes\.js$' || true)"
+          if [ -n "$unexpected_files" ]; then
+            echo "Unexpected files changed:" >&2
+            echo "$unexpected_files" >&2
+            exit 1
           fi
+
+          npm version patch --no-git-tag-version
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Test release candidate
+        if: steps.routes.outputs.changed == 'true'
+        run: |
+          npm test
+          npm pack --dry-run
+
+      - name: Create or update pull request
+        if: steps.routes.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          branch="automation/update-upstreams-routes"
+          version="$(node --print "require('./package.json').version")"
+          remote_oid="$(git ls-remote --heads origin "refs/heads/$branch" | cut -f1)"
+          needs_push=true
+
+          if [ -n "$remote_oid" ]; then
+            git fetch origin "refs/heads/$branch:refs/remotes/origin/$branch"
+            remote_files="$(git diff --name-only "origin/$DEFAULT_BRANCH...origin/$branch")"
+            unexpected_remote_files="$(echo "$remote_files" | grep -Ev '^(src/UpstreamRoutes\.js|package\.json|package-lock\.json)$' || true)"
+            if [ -n "$unexpected_remote_files" ]; then
+              echo "Unexpected files exist on the automation branch:" >&2
+              echo "$unexpected_remote_files" >&2
+              exit 1
+            fi
+            if git merge-base --is-ancestor "$GITHUB_SHA" "origin/$branch" && \
+              git diff --quiet "origin/$branch" -- \
+              src/UpstreamRoutes.js package.json package-lock.json; then
+              echo "The open automation branch already contains this release candidate."
+              needs_push=false
+            fi
+          fi
+
+          changed_files="$(git diff --name-only)"
+          unexpected_files="$(echo "$changed_files" | grep -Ev '^(src/UpstreamRoutes\.js|package\.json|package-lock\.json)$' || true)"
+          if [ -n "$unexpected_files" ]; then
+            echo "Unexpected release candidate files:" >&2
+            echo "$unexpected_files" >&2
+            exit 1
+          fi
+
+          if [ "$needs_push" = true ]; then
+            app_user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
+            git config user.name "${APP_SLUG}[bot]"
+            git config user.email "${app_user_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+            git switch --create "$branch"
+            git add src/UpstreamRoutes.js package.json package-lock.json
+            git commit -m "fix(routes): update upstream route snapshot to v$version"
+
+            if [ -n "$remote_oid" ]; then
+              git push --force-with-lease="refs/heads/$branch:$remote_oid" origin "HEAD:refs/heads/$branch"
+            else
+              git push --set-upstream origin "$branch"
+            fi
+          fi
+
+          pr_data="$(gh pr list --base "$DEFAULT_BRANCH" --head "$branch" --state open \
+            --json author,body,number,title --jq '.[0] // empty')"
+          pr_number="$(echo "$pr_data" | jq -r '.number // empty')"
+          title="fix(routes): update upstream route snapshot to v$version"
+          body="Automated WB upstream route update and patch release v$version."
+          if [ -n "$pr_number" ]; then
+            pr_author="$(echo "$pr_data" | jq -r '.author.login')"
+            if [ "$pr_author" != "${APP_SLUG}[bot]" ]; then
+              echo "Refusing to reuse PR #$pr_number created by $pr_author" >&2
+              exit 1
+            fi
+            current_title="$(echo "$pr_data" | jq -r '.title')"
+            current_body="$(echo "$pr_data" | jq -r '.body')"
+            if [ "$current_title" != "$title" ] || [ "$current_body" != "$body" ]; then
+              gh pr edit "$pr_number" --title "$title" --body "$body"
+            fi
+          else
+            gh pr create --base "$DEFAULT_BRANCH" --head "$branch" --title "$title" --body "$body"
+            pr_number="$(gh pr list --base "$DEFAULT_BRANCH" --head "$branch" --state open \
+              --json number --jq '.[0].number')"
+          fi
+
+          gh pr merge "$pr_number" --auto --squash --delete-branch

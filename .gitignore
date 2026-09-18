@@ -112,6 +112,7 @@ dist
 dev
 .vscode
 capture
+.worktrees/
 
 # Antibot research & debug scripts (not for production)
 antibot/
