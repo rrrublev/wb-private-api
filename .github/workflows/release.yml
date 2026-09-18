@@ -2,22 +2,78 @@ name: Release
 
 on:
   push:
-    tags: [ "v*.*.*" ]
+    branches: [ "main" ]
+    paths:
+      - package.json
 
 permissions:
   contents: write
   id-token: write
+  pull-requests: read
+
+concurrency:
+  group: release-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.ROUTES_APP_CLIENT_ID }}
+          private-key: ${{ secrets.ROUTES_APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-pull-requests: read
+
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Authorize automated route release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_APP_AUTHOR: ${{ steps.app-token.outputs.app-slug }}[bot]
+        shell: bash
+        run: |
+          pr_data="$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            --jq 'map(select(
+              .merged_at != null and
+              .base.ref == "main" and
+              .head.ref == "automation/update-upstreams-routes"
+            )) | first | [.number, .head.repo.full_name, .user.login] | @tsv')"
+          IFS=$'\t' read -r pr_number head_repository pr_author <<< "$pr_data"
+          if [ -z "$pr_number" ]; then
+            echo "This commit is not an authorized automated route PR merge." >&2
+            exit 1
+          fi
+          if [ "$head_repository" != "$GITHUB_REPOSITORY" ] || \
+             [ "$pr_author" != "$EXPECTED_APP_AUTHOR" ]; then
+            echo "PR #$pr_number was created by $pr_author from $head_repository." >&2
+            exit 1
+          fi
+
+          actual_files="$(gh api --paginate "/repos/$GITHUB_REPOSITORY/pulls/$pr_number/files" \
+            --jq '.[].filename' | sort)"
+          expected_files="$(printf '%s\n' package-lock.json package.json src/UpstreamRoutes.js)"
+          if [ "$actual_files" != "$expected_files" ]; then
+            echo "Unexpected files in route release PR #$pr_number:" >&2
+            echo "$actual_files" >&2
+            exit 1
+          fi
+
+      - name: Validate merged release contents
+        run: node scripts/validate-route-release.js "$GITHUB_SHA^"
 
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
 
       # npm 11.5.1+ is required for npm trusted publishing via OIDC.
       - run: npm install --global npm@11.5.1
@@ -25,15 +81,79 @@ jobs:
       - run: npm ci
       - run: npm test
 
-      - run: npm publish --access public
-
-      - name: Get release notes
-        id: notes
+      - name: Read package metadata
+        id: package
+        shell: bash
         run: |
-          echo "body<<EOF" >> $GITHUB_OUTPUT
-          git log -1 --pretty=format:'%B' >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          name="$(node --print "require('./package.json').name")"
+          version="$(node --print "require('./package.json').version")"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
 
-      - uses: softprops/action-gh-release@v3
-        with:
-          body: ${{ steps.notes.outputs.body }}
+          node --eval '
+            const packageJson = require("./package.json");
+            const lockfile = require("./package-lock.json");
+            if (packageJson.version !== lockfile.version ||
+                packageJson.version !== lockfile.packages[""].version) {
+              throw new Error("package.json and package-lock.json versions differ");
+            }
+          '
+
+          pack_metadata="$(npm pack --dry-run --json)"
+          local_integrity="$(echo "$pack_metadata" | jq -er '
+            if type == "array" then .[0].integrity
+            else to_entries[0].value.integrity
+            end
+          ')"
+
+          if registry_result="$(npm view "$name@$version" dist.integrity --json 2>&1)"; then
+            published_integrity="$(echo "$registry_result" | jq -er '.')"
+            if [ "$published_integrity" != "$local_integrity" ]; then
+              echo "Published $name@$version integrity does not match this commit." >&2
+              exit 1
+            fi
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          elif echo "$registry_result" | grep -Eq 'E404|404 Not Found'; then
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$registry_result" >&2
+            exit 1
+          fi
+
+      - name: Verify and create release tag
+        env:
+          TAG: ${{ steps.package.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.package.outputs.version }}
+        shell: bash
+        run: |
+          remote_tag_commit="$(git ls-remote --tags origin "refs/tags/$TAG^{}" | cut -f1)"
+          if [ -z "$remote_tag_commit" ]; then
+            remote_tag_commit="$(git ls-remote --tags origin "refs/tags/$TAG" | cut -f1)"
+          fi
+
+          if [ -n "$remote_tag_commit" ]; then
+            if [ "$remote_tag_commit" != "$GITHUB_SHA" ]; then
+              echo "$TAG already points to $remote_tag_commit instead of $GITHUB_SHA" >&2
+              exit 1
+            fi
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag --annotate "$TAG" --message "Release $RELEASE_VERSION"
+            git push origin "$TAG"
+          fi
+
+      - name: Publish package
+        if: steps.package.outputs.published == 'false'
+        run: npm publish --access public
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.package.outputs.tag }}
+        shell: bash
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --verify-tag --generate-notes --title "$TAG"
+          fi

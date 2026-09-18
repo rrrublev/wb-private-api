@@ -2,7 +2,6 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const { request } = require("undici");
 
 const DEFAULT_UPSTREAMS_URL = "https://cdn.wbbasket.ru/api/v3/upstreams";
 const DEFAULT_OUTPUT_PATH = path.resolve(__dirname, "../src/UpstreamRoutes.js");
@@ -52,6 +51,48 @@ function extractRoutes(upstreams) {
   };
 }
 
+function validateRangeEnds(ranges, routeMapName) {
+  let previousRangeEnd = -1;
+  if (!Array.isArray(ranges) || ranges.length === 0) {
+    throw new Error(
+      `${routeMapName} must contain strictly increasing non-negative integers`
+    );
+  }
+  for (const rangeEnd of ranges) {
+    if (
+      !Number.isSafeInteger(rangeEnd) ||
+      rangeEnd < 0 ||
+      rangeEnd <= previousRangeEnd
+    ) {
+      throw new Error(
+        `${routeMapName} must contain strictly increasing non-negative integers`
+      );
+    }
+    previousRangeEnd = rangeEnd;
+  }
+}
+
+function validateRouteUpdate(currentRoutes, nextRoutes, maxAddedRanges = 50) {
+  for (const routeMapName of ["mediaBasketRanges", "videoBasketRanges"]) {
+    const currentRanges = currentRoutes[routeMapName];
+    const nextRanges = nextRoutes[routeMapName];
+    validateRangeEnds(currentRanges, routeMapName);
+    validateRangeEnds(nextRanges, routeMapName);
+    const changesExistingRange = currentRanges.some(
+      (rangeEnd, index) => nextRanges[index] !== rangeEnd
+    );
+    if (nextRanges.length < currentRanges.length || changesExistingRange) {
+      throw new Error(`${routeMapName} must only append new ranges`);
+    }
+    const addedRanges = nextRanges.length - currentRanges.length;
+    if (addedRanges > maxAddedRanges) {
+      throw new Error(
+        `${routeMapName} adds ${addedRanges} ranges; maximum is ${maxAddedRanges}`
+      );
+    }
+  }
+}
+
 function formatRanges(ranges) {
   return ranges.map((range) => `  ${range},`).join("\n");
 }
@@ -82,6 +123,7 @@ async function loadUpstreams(options) {
     return JSON.parse(fs.readFileSync(options.inputPath, "utf8"));
   }
 
+  const { request } = require("undici");
   const response = await request(options.url, {
     headers: { accept: "application/json" },
     headersTimeout: 10000,
@@ -96,6 +138,15 @@ async function loadUpstreams(options) {
 async function main(args = process.argv.slice(2)) {
   const options = parseArguments(args);
   const routes = extractRoutes(await loadUpstreams(options));
+  if (fs.existsSync(options.outputPath)) {
+    const resolvedOutputPath = require.resolve(options.outputPath);
+    delete require.cache[resolvedOutputPath];
+    const currentSnapshot = require(resolvedOutputPath);
+    validateRouteUpdate({
+      mediaBasketRanges: currentSnapshot.MEDIA_BASKET_RANGES,
+      videoBasketRanges: currentSnapshot.VIDEO_BASKET_RANGES,
+    }, routes);
+  }
   fs.writeFileSync(options.outputPath, renderRoutes(routes));
   process.stdout.write(`Updated ${options.outputPath}\n`);
 }
@@ -107,4 +158,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { extractRoutes, renderRoutes };
+module.exports = { extractRoutes, main, renderRoutes, validateRouteUpdate };
