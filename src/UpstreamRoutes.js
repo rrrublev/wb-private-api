@@ -58,6 +58,16 @@ const MEDIA_BASKET_RANGES = Object.freeze([
   19589,
   20357,
   21125,
+  21893,
+  22661,
+  23429,
+  24197,
+  24965,
+  25733,
+  26501,
+  27269,
+  28037,
+  28805,
 ]);
 
 const VIDEO_BASKET_RANGES = Object.freeze([
